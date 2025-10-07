@@ -1,0 +1,91 @@
+name: workload
+on:
+  pull_request:
+    paths:
+      - "infra/workload/**"
+      - "dlt/**"
+      - "ingest/**"
+      - "bundles/**"
+      - "sql/**"
+  push:
+    branches: [ main ]
+    paths:
+      - "infra/workload/**"
+      - "dlt/**"
+      - "ingest/**"
+      - "bundles/**"
+      - "sql/**"
+  workflow_dispatch:
+    inputs:
+      destroy:
+        description: "Destroy workload resources?"
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TFSTATE_RG_NAME: rg-tfstate
+  TFSTATE_SA_NAME: st${{ secrets.TFSTATE_SA_UNIQ }}tfstate
+  TFSTATE_CONTAINER: workload-tfstate
+  TFSTATE_KEY: workload.tfstate
+
+  LOCATION: japaneast
+
+  # ---- Required variables passed to Terraform (adjust to your setup) ----
+  # These must align with infra/workload/variables.tf
+  RG_NAME: "rg-mock-data"
+  PREFIX:  "mock"
+  # ADLS name must be globally unique (letters+numbers only, 3-24 chars)
+  ADLS_NAME: ${{ vars.ADLS_NAME }}                     # set as Repo Variable
+  DATABRICKS_ACCOUNT_ID: ${{ secrets.DATABRICKS_ACCOUNT_ID }}
+  METASTORE_CONTAINER: "uc-root"
+
+jobs:
+  tf:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Azure OIDC login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform init (remote backend)
+        run: |
+          terraform -chdir=infra/workload init \
+            -backend-config="resource_group_name=${TFSTATE_RG_NAME}" \
+            -backend-config="storage_account_name=${TFSTATE_SA_NAME}" \
+            -backend-config="container_name=${TFSTATE_CONTAINER}" \
+            -backend-config="key=${TFSTATE_KEY}"
+
+      - name: Terraform plan (PR)
+        if: github.event_name == 'pull_request'
+        run: |
+          terraform -chdir=infra/workload plan -no-color \
+            -var="rg_name=${RG_NAME}" \
+            -var="location=${LOCATION}" \
+            -var="prefix=${PREFIX}" \
+            -var="adls_name=${ADLS_NAME}" \
+            -var="databricks_account_id=${DATABRICKS_ACCOUNT_ID}" \
+            -var="metastore_container=${METASTORE_CONTAINER}"
+
+      - name: Terraform apply (main)
+        if: github.ref == 'refs/heads/main' && inputs.destroy != 'true'
+        run: |
+          terraform -chdir=infra/workload apply -auto-approve \
+            -var="rg_name=${RG_NAME}" \
+            -var="location=${LOCATION}" \
+            -var="prefix=${PREFIX}" \
+            -var="adls_name=${ADLS_NAME}" \
+            -var="databricks_account_id=${DATABR

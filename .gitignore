@@ -1,0 +1,59 @@
+# --- Terraform ---
+**/.terraform/
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Lock file:
+# .terraform.lock.hcl
+
+# tfvars
+*.tfvars
+*.auto.tfvars
+terraform.tfvars
+terraform.tfvars.json
+
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.egg-info/
+.eggs/
+.build/
+dist/
+pip-wheel-metadata/
+.venv/
+venv/
+.env
+.env.*
+
+# Jupyter
+.ipynb_checkpoints/
+
+# pytest / cache
+.pytest_cache/
+
+# --- Databricks / Bundles / Notebooks ---
+.dbx/
+.databricks/
+**/.bundle/
+**/.bundle/*
+
+# Databricks exported notebooks (dbc is binary; track only source .py/.sql)
+*.dbc
+
+# --- IDE / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
