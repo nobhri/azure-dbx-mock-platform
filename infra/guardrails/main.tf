@@ -14,10 +14,12 @@ provider "azurerm" {
   features {}
 }
 
+data "azurerm_subscription" "current" {} # get current subscription ID
+
 # Subscription-level budget
 resource "azurerm_consumption_budget_subscription" "monthly" {
   name              = "budget-mvp"
-  subscription_id   = var.subscription_id
+  subscription_id = data.azurerm_subscription.current.id # get value from data source
   amount            = var.budget_amount
   time_grain        = "Monthly"
   time_period {

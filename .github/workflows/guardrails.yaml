@@ -52,7 +52,6 @@ jobs:
       - name: Terraform apply (budget + alerts)
         run: |
           terraform -chdir=infra/guardrails apply -auto-approve \
-            -var="subscription_id=${SUBSCRIPTION_ID}" \
             -var="budget_amount=${BUDGET_AMOUNT}" \
             -var="budget_start=${BUDGET_START}" \
             -var="budget_end=${BUDGET_END}" \
