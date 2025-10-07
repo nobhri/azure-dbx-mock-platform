@@ -1,0 +1,47 @@
+name: bootstrap
+on:
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write     # required for OIDC
+  contents: read
+
+env:
+  # ---- REQUIRED REPO SECRETS ----
+  # AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID, AZURE_CLIENT_ID must exist
+  # TFSTATE_SA_UNIQ: short unique suffix for the tfstate Storage Account name
+  TFSTATE_RG_NAME: rg-tfstate
+  TFSTATE_SA_NAME: st${{ secrets.TFSTATE_SA_UNIQ }}tfstate
+  GUARDRAILS_CONTAINER: guardrails-tfstate
+  WORKLOAD_CONTAINER: workload-tfstate
+  LOCATION: japaneast
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Azure OIDC login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # NOTE: bootstrap uses local (ephemeral) state on the runner
+      - name: Terraform init (bootstrap)
+        run: terraform -chdir=infra/bootstrap init
+
+      - name: Terraform apply (create tfstate RG/SA/containers)
+        run: |
+          terraform -chdir=infra/bootstrap apply -auto-approve \
+            -var="tfstate_rg_name=${TFSTATE_RG_NAME}" \
+            -var="tfstate_sa_name=${TFSTATE_SA_NAME}" \
+            -var="guardrails_container=${GUARDRAILS_CONTAINER}" \
+            -var="workload_container=${WORKLOAD_CONTAINER}" \
+            -var="location=${LOCATION}"
