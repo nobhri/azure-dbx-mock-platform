@@ -6,6 +6,7 @@ variable "tfstate_rg_name" {
 variable "tfstate_sa_name" {
   description = "Storage account for tfstate"
   type        = string
+  default = "tfstateabcd"
 }
 
 variable "guardrails_container" {
