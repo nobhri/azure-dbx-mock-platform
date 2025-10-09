@@ -6,7 +6,7 @@ variable "budget_amount" {
 
 variable "budget_start" {
   type    = string
-  default = "2025-01-01T00:00:00Z"
+  default = "2025-10-01T00:00:00Z"
 }
 
 variable "budget_end" {
