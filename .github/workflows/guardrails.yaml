@@ -6,10 +6,6 @@ on:
     paths:
       - "infra/guardrails/**"
 
-concurrency:
-  group: tf-guardrails
-  cancel-in-progress: true
-
 permissions:
   id-token: write
   contents: read
@@ -53,11 +49,12 @@ jobs:
             -backend-config="container_name=${TFSTATE_CONTAINER}" \
             -backend-config="key=${TFSTATE_KEY}"
 
+      - name: Set budget dates to current month
+        run: echo "BUDGET_START=$(date -u +'%Y-%m-01T00:00:00Z')" >> $GITHUB_ENV
+
       - name: Terraform apply (budget + alerts)
         run: |
-          terraform -chdir=infra/guardrails apply \
-            -auto-approve -input=false -lock-timeout=10m -no-color \
+          terraform -chdir=infra/guardrails apply -auto-approve -input=false -lock-timeout=10m \
             -var="budget_amount=${BUDGET_AMOUNT}" \
-            -var="budget_start=${BUDGET_START}" \
-            -var="budget_end=${BUDGET_END}" \
-            -var='alert_emails=["'${ALERT_EMAIL}'"]'
+            -var="budget_start=${{ env.BUDGET_START }}" \
+            -var='alert_emails=["'${{ env.ALERT_EMAIL }}'"]'
