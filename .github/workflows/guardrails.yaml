@@ -6,6 +6,10 @@ on:
     paths:
       - "infra/guardrails/**"
 
+concurrency:
+  group: tf-guardrails
+  cancel-in-progress: true
+
 permissions:
   id-token: write
   contents: read
