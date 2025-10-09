@@ -1,7 +1,3 @@
-variable "subscription_id" {
-  type = string
-}
-
 variable "budget_amount" {
   description = "Monthly budget threshold"
   type        = number
