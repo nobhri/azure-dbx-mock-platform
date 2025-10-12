@@ -21,7 +21,7 @@ resource "databricks_metastore" "this" {
 resource "databricks_metastore_assignment" "this" {
   provider     = databricks.account
   metastore_id = databricks_metastore.this.id
-  workspace_id = data.databricks_current_workspace.ws.workspace_id  # <-- numeric
+  workspace_id = data.databricks_workspace.ws.workspace_id  # numeric ID from account API
 }
 
 # Storage Credential via Access Connector (Managed Identity)
