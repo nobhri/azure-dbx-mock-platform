@@ -26,7 +26,7 @@ env:
   TFSTATE_KEY: azure.tfstate
   LOCATION: japaneast
   RG_NAME: rg-mock-data
-  ADLS_NAME: st<yourunique>data     # ← 必ず一意の小文字英数字に変更
+  ADLS_NAME: stdataabcdedata     # ← 必ず一意の小文字英数字に変更
   WORKSPACE_SKU: premium
   PREFIX: mock
 
@@ -49,13 +49,13 @@ jobs:
       - name: Preflight — break stale lease if any
         run: |
           az storage blob show \
-            --account-name ${TFSTATE_SA_NAME} \
+            --account-name $TFSTATE_SA_NAME \
             --container-name $TFSTATE_CONTAINER \
             --name $TFSTATE_KEY \
             --auth-mode login \
             --query "properties.leaseState" -o tsv 2>/dev/null | grep -q leased && \
           az storage blob lease break \
-            --account-name ${{ secrets.TFSTATE_SA_NAME }} \
+            --account-name $TFSTATE_SA_NAME \
             --container-name $TFSTATE_CONTAINER \
             --blob-name $TFSTATE_KEY \
             --auth-mode login || true
@@ -64,7 +64,7 @@ jobs:
         run: |
           terraform -chdir=infra/workload-azure init \
             -backend-config="resource_group_name=$TFSTATE_RG_NAME" \
-            -backend-config="storage_account_name=${{ secrets.TFSTATE_SA_NAME }}" \
+            -backend-config="storage_account_name=$TFSTATE_SA_NAME" \
             -backend-config="container_name=$TFSTATE_CONTAINER" \
             -backend-config="key=$TFSTATE_KEY"
 
@@ -103,7 +103,7 @@ jobs:
         if: cancelled()
         run: |
           az storage blob lease break \
-            --account-name ${{ secrets.TFSTATE_SA_NAME }} \
+            --account-name $TFSTATE_SA_NAME \
             --container-name $TFSTATE_CONTAINER \
             --blob-name $TFSTATE_KEY \
             --auth-mode login || true
