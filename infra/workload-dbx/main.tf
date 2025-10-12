@@ -1,7 +1,6 @@
-# Lookup workspace by name using Databricks Account API
-data "databricks_workspace" "ws" {
-  provider       = databricks.account
-  workspace_name = var.workspace_name
+# Get numeric workspace_id for the workspace-scoped provider
+data "databricks_current_workspace" "ws" {
+  provider = databricks.workspace
 }
 
 locals {
@@ -21,7 +20,7 @@ resource "databricks_metastore" "this" {
 resource "databricks_metastore_assignment" "this" {
   provider     = databricks.account
   metastore_id = databricks_metastore.this.id
-  workspace_id = data.databricks_workspace.ws.workspace_id  # numeric ID from account API
+  workspace_id = data.databricks_current_workspace.ws.workspace_id  # numeric
 }
 
 # Storage Credential via Access Connector (Managed Identity)
