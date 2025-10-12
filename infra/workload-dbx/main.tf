@@ -1,3 +1,8 @@
+# Get numeric workspace_id for the currently-targeted workspace provider
+data "databricks_current_workspace" "ws" {
+  provider = databricks.workspace
+}
+
 locals {
   storage_root_abfss = "abfss://${var.uc_root_container}@${var.storage_account_name}.dfs.core.windows.net/"
 }
@@ -15,7 +20,7 @@ resource "databricks_metastore" "this" {
 resource "databricks_metastore_assignment" "this" {
   provider     = databricks.account
   metastore_id = databricks_metastore.this.id
-  workspace_id = replace(var.azure_workspace_resource_id, ".*/workspaces/", "")
+  workspace_id = data.databricks_current_workspace.ws.workspace_id  # <-- numeric
 }
 
 # Storage Credential via Access Connector (Managed Identity)
