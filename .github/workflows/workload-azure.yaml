@@ -79,7 +79,7 @@ jobs:
             -var="workspace_sku=$WORKSPACE_SKU"
 
       - name: Terraform Apply (main)
-        if: github.ref == 'refs/heads/main' && inputs.destroy != 'true'
+        if: github.ref == 'refs/heads/main' && inputs.destroy != true
         env: { TF_IN_AUTOMATION: "1" }
         run: |
           terraform -chdir=infra/workload-azure apply -auto-approve -input=false -lock-timeout=10m -no-color \
@@ -90,7 +90,7 @@ jobs:
             -var="workspace_sku=$WORKSPACE_SKU"
 
       - name: Terraform Destroy (manual)
-        if: inputs.destroy == 'true'
+        if: inputs.destroy
         run: |
           terraform -chdir=infra/workload-azure destroy -auto-approve -input=false -lock-timeout=10m -no-color \
             -var="prefix=$PREFIX" \
