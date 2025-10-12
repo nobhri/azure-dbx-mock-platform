@@ -49,7 +49,7 @@ jobs:
       - name: Preflight — break stale lease if any
         run: |
           az storage blob show \
-            --account-name ${{ secrets.TFSTATE_SA_NAME }} \
+            --account-name ${TFSTATE_SA_NAME} \
             --container-name $TFSTATE_CONTAINER \
             --name $TFSTATE_KEY \
             --auth-mode login \
