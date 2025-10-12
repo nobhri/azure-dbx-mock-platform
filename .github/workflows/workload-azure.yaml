@@ -1,0 +1,118 @@
+name: workload-azure
+on:
+  pull_request:
+    paths: [ "infra/workload-azure/**" ]
+  push:
+    branches: [ "main" ]
+    paths: [ "infra/workload-azure/**" ]
+  workflow_dispatch:
+    inputs:
+      destroy:
+        type: boolean
+        default: false
+
+concurrency:
+  group: tf-workload-azure
+  cancel-in-progress: true
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TFSTATE_RG_NAME: rg-tfstate
+  TFSTATE_CONTAINER: workload-tfstate
+  TFSTATE_KEY: azure.tfstate
+  LOCATION: japaneast
+  RG_NAME: rg-mock-data
+  ADLS_NAME: st<yourunique>data     # ← 必ず一意の小文字英数字に変更
+  WORKSPACE_SKU: premium
+  PREFIX: mock
+
+jobs:
+  tf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Preflight — break stale lease if any
+        run: |
+          az storage blob show \
+            --account-name ${{ secrets.TFSTATE_SA_NAME }} \
+            --container-name $TFSTATE_CONTAINER \
+            --name $TFSTATE_KEY \
+            --auth-mode login \
+            --query "properties.leaseState" -o tsv 2>/dev/null | grep -q leased && \
+          az storage blob lease break \
+            --account-name ${{ secrets.TFSTATE_SA_NAME }} \
+            --container-name $TFSTATE_CONTAINER \
+            --blob-name $TFSTATE_KEY \
+            --auth-mode login || true
+
+      - name: Terraform Init (remote backend)
+        run: |
+          terraform -chdir=infra/workload-azure init \
+            -backend-config="resource_group_name=$TFSTATE_RG_NAME" \
+            -backend-config="storage_account_name=${{ secrets.TFSTATE_SA_NAME }}" \
+            -backend-config="container_name=$TFSTATE_CONTAINER" \
+            -backend-config="key=$TFSTATE_KEY"
+
+      - name: Terraform Plan (PR)
+        if: github.event_name == 'pull_request'
+        run: |
+          terraform -chdir=infra/workload-azure plan -input=false -no-color \
+            -var="prefix=$PREFIX" \
+            -var="location=$LOCATION" \
+            -var="rg_name=$RG_NAME" \
+            -var="adls_name=$ADLS_NAME" \
+            -var="workspace_sku=$WORKSPACE_SKU"
+
+      - name: Terraform Apply (main)
+        if: github.ref == 'refs/heads/main' && inputs.destroy != 'true'
+        env: { TF_IN_AUTOMATION: "1" }
+        run: |
+          terraform -chdir=infra/workload-azure apply -auto-approve -input=false -lock-timeout=10m -no-color \
+            -var="prefix=$PREFIX" \
+            -var="location=$LOCATION" \
+            -var="rg_name=$RG_NAME" \
+            -var="adls_name=$ADLS_NAME" \
+            -var="workspace_sku=$WORKSPACE_SKU"
+
+      - name: Terraform Destroy (manual)
+        if: inputs.destroy == 'true'
+        run: |
+          terraform -chdir=infra/workload-azure destroy -auto-approve -input=false -lock-timeout=10m -no-color \
+            -var="prefix=$PREFIX" \
+            -var="location=$LOCATION" \
+            -var="rg_name=$RG_NAME" \
+            -var="adls_name=$ADLS_NAME" \
+            -var="workspace_sku=$WORKSPACE_SKU"
+
+      - name: Break lease if cancelled
+        if: cancelled()
+        run: |
+          az storage blob lease break \
+            --account-name ${{ secrets.TFSTATE_SA_NAME }} \
+            --container-name $TFSTATE_CONTAINER \
+            --blob-name $TFSTATE_KEY \
+            --auth-mode login || true
+
+      # Expose outputs for the dbx workflow to reuse if needed
+      - name: Read outputs
+        if: always()
+        id: tfout
+        run: |
+          echo "WORKSPACE_RESOURCE_ID=$(terraform -chdir=infra/workload-azure output -raw workspace_resource_id)" >> $GITHUB_OUTPUT
+          echo "ACCESS_CONNECTOR_ID=$(terraform -chdir=infra/workload-azure output -raw access_connector_id)" >> $GITHUB_OUTPUT
+          echo "STORAGE_ACCOUNT_NAME=$(terraform -chdir=infra/workload-azure output -raw storage_account_name)" >> $GITHUB_OUTPUT
+          echo "UC_ROOT_CONTAINER=$(terraform -chdir=infra/workload-azure output -raw uc_root_container)" >> $GITHUB_OUTPUT
