@@ -9,6 +9,11 @@ variable "azure_workspace_resource_id" {
   type        = string
 }
 
+variable "workspace_name" {
+  description = "Databricks workspace name (from workload-azure)"
+  type        = string
+}
+
 variable "access_connector_id" {
   description = "Resource ID of the Databricks Access Connector"
   type        = string

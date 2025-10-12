@@ -1,6 +1,7 @@
-# Get numeric workspace_id for the currently-targeted workspace provider
-data "databricks_current_workspace" "ws" {
-  provider = databricks.workspace
+# Lookup workspace by name using Databricks Account API
+data "databricks_workspace" "ws" {
+  provider       = databricks.account
+  workspace_name = var.workspace_name
 }
 
 locals {

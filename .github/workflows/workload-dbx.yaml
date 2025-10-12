@@ -56,6 +56,7 @@ jobs:
         id: azout
         run: |
           echo "WORKSPACE_RESOURCE_ID=$(terraform -chdir=infra/workload-azure output -raw workspace_resource_id)" >> $GITHUB_OUTPUT
+          echo "WORKSPACE_NAME=$(terraform -chdir=infra/workload-azure output -raw workspace_name)" >> $GITHUB_OUTPUT
           echo "ACCESS_CONNECTOR_ID=$(terraform -chdir=infra/workload-azure output -raw access_connector_id)" >> $GITHUB_OUTPUT
           echo "STORAGE_ACCOUNT_NAME=$(terraform -chdir=infra/workload-azure output -raw storage_account_name)" >> $GITHUB_OUTPUT
           echo "UC_ROOT_CONTAINER=$(terraform -chdir=infra/workload-azure output -raw uc_root_container)" >> $GITHUB_OUTPUT
@@ -88,6 +89,7 @@ jobs:
           terraform -chdir=infra/workload-dbx plan -input=false -no-color \
             -var="databricks_account_id=${{ secrets.DATABRICKS_ACCOUNT_ID }}" \
             -var="azure_workspace_resource_id=${{ steps.azout.outputs.WORKSPACE_RESOURCE_ID }}" \
+            -var="workspace_name=${{ steps.azout.outputs.WORKSPACE_NAME }}" \
             -var="access_connector_id=${{ steps.azout.outputs.ACCESS_CONNECTOR_ID }}" \
             -var="storage_account_name=${{ steps.azout.outputs.STORAGE_ACCOUNT_NAME }}" \
             -var="uc_root_container=${{ steps.azout.outputs.UC_ROOT_CONTAINER }}" \
@@ -101,6 +103,7 @@ jobs:
           terraform -chdir=infra/workload-dbx apply -auto-approve -input=false -lock-timeout=10m -no-color \
             -var="databricks_account_id=${{ secrets.DATABRICKS_ACCOUNT_ID }}" \
             -var="azure_workspace_resource_id=${{ steps.azout.outputs.WORKSPACE_RESOURCE_ID }}" \
+            -var="workspace_name=${{ steps.azout.outputs.WORKSPACE_NAME }}" \
             -var="access_connector_id=${{ steps.azout.outputs.ACCESS_CONNECTOR_ID }}" \
             -var="storage_account_name=${{ steps.azout.outputs.STORAGE_ACCOUNT_NAME }}" \
             -var="uc_root_container=${{ steps.azout.outputs.UC_ROOT_CONTAINER }}" \

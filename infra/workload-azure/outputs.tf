@@ -6,6 +6,10 @@ output "workspace_url" {
   value = azurerm_databricks_workspace.this.workspace_url
 }
 
+output "workspace_name" {
+  value = azurerm_databricks_workspace.this.name
+}
+
 output "access_connector_id" {
   value = azurerm_databricks_access_connector.this.id
 }
