@@ -21,6 +21,7 @@ permissions:
 
 env:
   TFSTATE_RG_NAME: rg-tfstate
+  TFSTATE_SA_NAME: st${{ secrets.TFSTATE_SA_UNIQ }}tfstate
   TFSTATE_CONTAINER: workload-tfstate
   TFSTATE_KEY: azure.tfstate
   LOCATION: japaneast
