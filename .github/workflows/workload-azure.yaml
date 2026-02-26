@@ -26,7 +26,7 @@ env:
   TFSTATE_KEY: azure.tfstate
   LOCATION: japaneast
   RG_NAME: rg-mock-data
-  ADLS_NAME: stdataabcdedata     # ← 必ず一意の小文字英数字に変更
+  ADLS_NAME: stdataabcdedata     # HACKME: Parameterize and write it on .env, etc.
   WORKSPACE_SKU: premium
   PREFIX: mock
 

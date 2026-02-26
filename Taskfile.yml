@@ -1,0 +1,672 @@
+# Taskfile.yaml
+# ===========================================================
+# High-speed local development helper for Terraform + Azure + Databricks
+# - Loads .env automatically (dotenv: true). Never commit sensitive data.
+# - Generic Terraform ops are directory-driven by TF_DIR.
+# - Workload-specific flows (Azure/DBX) are provided as azure:* / dbx:* tasks.
+# - Azure outputs are exported to .env.dbx for dbx tasks.
+# ===========================================================
+
+version: "3"
+
+dotenv:
+  - .env
+
+# -----------------------------------------------------------
+# Default variables (override via CLI, e.g. TF_DIR=... ENV=stg)
+# -----------------------------------------------------------
+vars:
+  # === Generic ===
+  ROOT: '{{.TASKFILE_DIR}}'
+  TF_DIR: "{{.TF_DIR | default `infra/workload-azure`}}"
+  PLAN: "{{.PLAN | default `plan.bin`}}"
+  ENV: "{{.ENV | default `dev`}}"
+
+  # === Azure & Databricks env (fallback to process env) ===
+  AZURE_TENANT_ID: "{{.AZURE_TENANT_ID | default .ENV_AZURE_TENANT_ID}}"
+  AZURE_SUBSCRIPTION_ID: "{{.AZURE_SUBSCRIPTION_ID | default .ENV_AZURE_SUBSCRIPTION_ID}}"
+  SP_OBJ_ID: "{{.SP_OBJ_ID | default .ENV_SP_OBJ_ID}}"
+  DATABRICKS_HOST: "{{.DATABRICKS_HOST | default .ENV_DATABRICKS_HOST}}"
+  DATABRICKS_TOKEN: "{{.DATABRICKS_TOKEN | default .ENV_DATABRICKS_TOKEN}}"
+  DATABRICKS_WAREHOUSE_ID: "{{.DATABRICKS_WAREHOUSE_ID | default .ENV_DATABRICKS_WAREHOUSE_ID}}"
+
+  # === Workload backend (tfstate) ===
+  TFSTATE_RG_NAME: "{{.TFSTATE_RG_NAME | default `rg-tfstate`}}"
+  TFSTATE_SA_NAME: "{{.TFSTATE_SA_NAME | default `stXXXXtfstate`}}"    # <- make globally unique
+  TFSTATE_CONTAINER: "{{.TFSTATE_CONTAINER | default `workload-tfstate`}}"
+  TFSTATE_KEY_AZ: "{{.TFSTATE_KEY_AZ | default `azure.tfstate`}}"
+  TFSTATE_KEY_DBX: "{{.TFSTATE_KEY_DBX | default `dbx.tfstate`}}"
+
+  # === Workload variables (Azure) ===
+  LOCATION: "{{.LOCATION | default `japaneast`}}"
+  RG_NAME: "{{.RG_NAME | default `rg-mock-data`}}"
+  ADLS_NAME: "{{.ADLS_NAME | default `stdataabcdedata`}}"              # <- must be unique, lowercase alnum
+  WORKSPACE_SKU: "{{.WORKSPACE_SKU | default `premium`}}"
+  PREFIX: "{{.PREFIX | default `mock`}}"
+
+  # === Workload variables (DBX) ===
+  DATABRICKS_ACCOUNT_ID: "{{.DATABRICKS_ACCOUNT_ID | default ``}}"
+  CATALOG_NAME: "{{.CATALOG_NAME | default `mock`}}"
+  SCHEMAS_JSON: "{{.SCHEMAS_JSON | default `[\"staging\",\"serving\"]`}}" # FIXME: backslash might have an issue
+
+  # === Directories ===
+  AZ_DIR: "{{.AZ_DIR | default `infra/workload-azure`}}"
+  DBX_DIR: "{{.DBX_DIR | default `infra/workload-dbx`}}"
+
+# -----------------------------------------------------------
+# Common environment
+# -----------------------------------------------------------
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_VAR_env: "{{.ENV}}"
+  DATABRICKS_HOST: "{{.DATABRICKS_HOST}}"
+  DATABRICKS_TOKEN: "{{.DATABRICKS_TOKEN}}"
+
+# -----------------------------------------------------------
+# Tasks
+# -----------------------------------------------------------
+tasks:
+
+  help:
+    desc: "Show frequently used commands and variables (Quick menu)"
+    cmds:
+      - |
+        echo "== Quick reference =="
+        echo "Generic:"
+        echo "  task validate TF_DIR=infra/azure"
+        # echo "  task init TF_DIR=infra/databricks"
+        # echo "  task plan TF_DIR=infra/azure ENV=stg"
+        # echo "  task apply TF_DIR=infra/azure"
+        # echo "  task destroy TF_DIR=infra/databricks"
+        # echo "  task state:list TF_DIR=infra/azure"
+        # echo "  task graph TF_DIR=infra/azure"
+        # echo ""
+        echo "Workload flows:"
+        echo "  task azure:plan | azure:apply | azure:destroy | azure:outputs"
+        echo "  task dbx:plan   | dbx:apply   | dbx:destroy"
+        echo "  task plan:all   | apply:all   | destroy:all"
+        echo ""
+        echo "Azure quick checks: az:whoami, az:sub, az:providers"
+        echo "Databricks checks: dbx:me, dbx:ws:ls, dbx:sql:warehouses"
+        echo ""
+        echo "Vars: TF_DIR={{.TF_DIR}}  ENV={{.ENV}}  PLAN={{.PLAN}}"
+        echo "Azure: SUB={{.AZURE_SUBSCRIPTION_ID}} TENANT={{.AZURE_TENANT_ID}}"
+        echo "DBX:   HOST={{.DATABRICKS_HOST}}"
+
+  # ====== App registration & Service Principal (sample) ======
+  az-sp-oidc:
+    desc: "Create an App registration + SP and set up GitHub OIDC (sample)"
+    cmds:
+      - |
+        APP_ID=$(az ad app create --display-name "{{ .APP_NAME }}" --query appId -o tsv)
+        SP_OBJ_ID=$(az ad sp create --id "$APP_ID" --query id -o tsv)
+      - FC_JSON=$(printf '{"name":"github-%s-main","issuer":"https://token.actions.githubusercontent.com","subject":"repo:%s:ref:%s","audiences":["api://AzureADTokenExchange"]}' "$REPO" "$REPO" "$BRANCH")
+      - az ad app federated-credential create --id "$APP_ID" --parameters "$FC_JSON"
+
+  # ====== RBAC assignments ======
+  az-roles:
+    desc: "Grant Contributor at subscription + Storage Blob Data Contributor on tfstate SA to the SP"
+    cmds:
+      - |
+        az role assignment create \
+          --assignee-object-id "{{ .SP_OBJ_ID }}" \
+          --assignee-principal-type ServicePrincipal \
+          --role "Contributor" \
+          --scope "/subscriptions/{{ .AZURE_SUBSCRIPTION_ID }}"
+      - |
+        az role assignment create \
+          --assignee-object-id "{{ .SP_OBJ_ID }}" \
+          --assignee-principal-type ServicePrincipal \
+          --role "Storage Blob Data Contributor" \
+          --scope "/subscriptions/{{ .AZURE_SUBSCRIPTION_ID }}"
+
+  az-roles-human-user:
+    desc: "Grant human user Storage Blob Data Contributor on tfstate SA (for local unlock)"
+    cmds:
+      - |
+        SCOPE="/subscriptions/{{ .AZURE_SUBSCRIPTION_ID }}/resourceGroups/{{ .TFSTATE_RG_NAME }}/providers/Microsoft.Storage/storageAccounts/{{ .TFSTATE_SA_NAME }}";
+        az role assignment create \
+          --assignee "{{ .USER_ID }}" \
+          --role "Storage Blob Data Contributor" \
+          --scope "${SCOPE}"
+
+  # =========================================================
+  # Generic Terraform core operations (directory switched by TF_DIR)
+  # =========================================================
+  # TODO: check and delete if unnecessary
+
+  # validate:
+  #   desc: "Run terraform fmt & validate"
+  #   dir: "{{.TF_DIR}}"
+  #   cmds:
+  #     - terraform fmt -check -recursive
+  #     - terraform validate
+
+  # init:
+  #   desc: "Terraform init with remote backend"
+  #   dir: "{{.TF_DIR}}"
+  #   vars:
+  #     TFSTATE_KEY: "azure.tfstate"
+  #   cmds:
+  #     - |
+  #       terraform init \
+  #         -backend-config="resource_group_name={{.TFSTATE_RG_NAME}}" \
+  #         -backend-config="storage_account_name={{.TFSTATE_SA_NAME}}" \
+  #         -backend-config="container_name={{.TFSTATE_CONTAINER}}" \
+  #         -backend-config="key={{.TFSTATE_KEY}}"
+
+  # plan:
+  #   desc: "Terraform plan using TF_VAR_env={{.ENV}} (generic)"
+  #   dir: "{{.TF_DIR}}"
+  #   cmds:
+  #     - |
+  #       terraform plan -input=false -no-color \
+  #         -var="prefix=mock" \
+  #         -var="location=japaneast" \
+  #         -var="rg_name=rg-mock" \
+  #         -var="adls_name=stabcdefgdata" \
+  #         -var="workspace_sku=premium"
+
+  # plan:refresh-only:
+  #   desc: "Terraform plan -refresh-only to detect drift"
+  #   dir: "{{.TF_DIR}}"
+  #   cmds:
+  #     - terraform plan -refresh-only -no-color
+
+  # apply:
+  #   desc: "Terraform apply (generic)"
+  #   dir: "{{.TF_DIR}}"
+  #   cmds:
+  #     - |
+  #       terraform apply -input=false \
+  #         -var="prefix=mock" \
+  #         -var="location=japaneast" \
+  #         -var="rg_name=rg-mock" \
+  #         -var="adls_name=stabcdefgdata" \
+  #         -var="workspace_sku=premium"
+
+  # destroy:
+  #   desc: "Terraform destroy (generic; sample switches to workload-azure)"
+  #   cmds:
+  #     - |
+  #       terraform -chdir=infra/workload-azure destroy -auto-approve -input=false -lock-timeout=10m -no-color \
+  #         -var="prefix=mock" \
+  #         -var="location=japaneast" \
+  #         -var="rg_name=rg-mock-data" \
+  #         -var="adls_name=stdataabcdedata" \
+  #         -var="workspace_sku=premium"
+
+  console:
+    desc: "Open terraform console"
+    dir: "{{.TF_DIR}}"
+    interactive: true
+    cmds:
+      - terraform console
+
+  graph:
+    desc: "Render dependency graph to graph.png (requires graphviz 'dot')"
+    dir: "{{.TF_DIR}}"
+    cmds:
+      - terraform graph | dot -Tpng > graph.png
+      - echo "Output:\ {{.TF_DIR}}/graph.png"
+
+  # ---------------- Terraform state helpers ----------------
+  state:list:
+    desc: "List resources in current state"
+    dir: "{{.TF_DIR}}"
+    cmds:
+      - terraform state list
+
+  state:show:
+    desc: "Show a specific resource from state (use addr=...)"
+    dir: "{{.TF_DIR}}"
+    vars:
+      addr: "{{.addr | default `REQUIRED_RESOURCE_ADDRESS`}}"
+    cmds:
+      - test "{{.addr}}" != "REQUIRED_RESOURCE_ADDRESS" || (echo "Set addr=..."; exit 1)
+      - terraform state show "{{.addr}}"
+
+  # =========================================================
+  # Lint / Security checks
+  # =========================================================
+  lint:
+    desc: "Run TFLint"
+    dir: "{{.TF_DIR}}"
+    cmds:
+      - tflint --init
+      - tflint
+
+  checkov:
+    desc: "Run Checkov"
+    cmds:
+      - checkov -d "{{.TF_DIR}}"
+
+  qa:
+    desc: "Run validate + lint + checkov"
+    cmds:
+      - task: validate
+      - task: lint
+      - task: checkov
+
+  # =========================================================
+  # Azure quick checks (requires Azure CLI)
+  # =========================================================
+  az:whoami:
+    desc: "Show current Azure account context"
+    cmds:
+      - az account show --output table || (echo "Run 'az login' first"; exit 1)
+
+  az:sub:
+    desc: "Display subscription and tenant info"
+    cmds:
+      - echo "SUBSCRIPTION:\ {{.AZURE_SUBSCRIPTION_ID}}"
+      - echo "TENANT\ \ \ \ \ :\ {{.AZURE_TENANT_ID}}"
+      - az account show --query "{name:name, id:id, tenantId:tenantId}" -o table
+
+  az:set-sub:
+    desc: "Set active subscription to AZURE_SUBSCRIPTION_ID"
+    cmds:
+      - test -n "{{.AZURE_SUBSCRIPTION_ID}}" || (echo "AZURE_SUBSCRIPTION_ID missing"; exit 1)
+      - az account set --subscription "{{.AZURE_SUBSCRIPTION_ID}}"
+      - az account show --query "{name:name, id:id}" -o table
+
+  az:providers:
+    desc: "List provider registrations (e.g. Microsoft.Databricks)"
+    cmds:
+      - az provider list --query "[].{Ns:namespace, Reg:registrationState}" -o table
+      - echo "Tip:\ az provider register --namespace Microsoft.Databricks"
+
+  az:rg:list:
+    desc: "List all resource groups"
+    cmds:
+      - az group list -o table
+
+  az:find:
+    desc: "Find resource by name pattern (use q=pattern)"
+    vars:
+      q: "{{.q | default `*`}}"
+    cmds:
+      - az resource list --query "[?contains(name, '{{.q}}')].[name, type, resourceGroup]" -o table
+
+  # =========================================================
+  # Databricks quick checks (requires Databricks CLI)
+  # =========================================================
+  dbx:me:
+    desc: "Show current Databricks user (requires DATABRICKS_HOST/TOKEN)"
+    cmds:
+      - test -n "{{.DATABRICKS_HOST}}" || (echo "DATABRICKS_HOST missing"; exit 1)
+      - test -n "{{.DATABRICKS_TOKEN}}" || (echo "DATABRICKS_TOKEN missing"; exit 1)
+      - databricks current-user me
+
+  dbx:ws:ls:
+    desc: "List top-level workspace objects"
+    cmds:
+      - databricks workspace ls /
+
+  dbx:clusters:
+    desc: "List clusters"
+    cmds:
+      - databricks clusters list
+
+  dbx:sql:warehouses:
+    desc: "List SQL warehouses"
+    cmds:
+      - databricks sql warehouses list
+
+  dbx:sql:query:
+    desc: "Execute quick SQL (use q='SELECT 1', w=<id>)"
+    vars:
+      q: "{{.q | default `SELECT 1`}}"
+      w: "{{.w | default .DATABRICKS_WAREHOUSE_ID}}"
+    cmds:
+      - test -n "{{.w}}" || (echo "Set warehouse id with w=... or DATABRICKS_WAREHOUSE_ID"; exit 1)
+      - databricks sql query execute --warehouse-id "{{.w}}" --sql-text "{{.q}}"
+
+  # =========================================================
+  # Workload: helpers shared by azure/dbx flows
+  # =========================================================
+  lease:break:
+    desc: "Break stale lease on tfstate blob if any (safe to run)"
+    silent: true
+    env:
+      STATE_KEY: "{{.STATE_KEY | default .TFSTATE_KEY_AZ}}"
+    cmds:
+      - |
+        set -euo pipefail
+        if az storage blob show \
+            --account-name "{{.TFSTATE_SA_NAME}}" \
+            --container-name "{{.TFSTATE_CONTAINER}}" \
+            --name "${STATE_KEY}" \
+            --auth-mode login \
+            --query "properties.leaseState" -o tsv 2>/dev/null | grep -q leased; then
+          az storage blob lease break \
+            --account-name "{{.TFSTATE_SA_NAME}}" \
+            --container-name "{{.TFSTATE_CONTAINER}}" \
+            --blob-name "${STATE_KEY}" \
+            --auth-mode login || true
+        fi
+
+  # =========================================================
+  # Workload: Azure (infra/workload-azure)
+  # =========================================================
+  azure:init:
+    desc: "Terraform init (workload-azure) with remote backend"
+    # deps: [lease:break]
+    env:
+      STATE_KEY: "{{.TFSTATE_KEY_AZ}}"
+    dir: "{{.AZ_DIR}}"
+    cmds:
+      - |
+        terraform init \
+          -backend-config="resource_group_name={{.TFSTATE_RG_NAME}}" \
+          -backend-config="storage_account_name={{.TFSTATE_SA_NAME}}" \
+          -backend-config="container_name={{.TFSTATE_CONTAINER}}" \
+          -backend-config="key={{.TFSTATE_KEY_AZ}}"
+
+  azure:plan:
+    desc: "Terraform plan (workload-azure)"
+    deps: [azure:init]
+    dir: "{{.AZ_DIR}}"
+    cmds:
+      - |
+        terraform plan -input=false -no-color \
+          -var="prefix={{.PREFIX}}" \
+          -var="location={{.LOCATION}}" \
+          -var="rg_name={{.RG_NAME}}" \
+          -var="adls_name={{.ADLS_NAME}}" \
+          -var="workspace_sku={{.WORKSPACE_SKU}}"
+
+  azure:apply:
+    desc: "Terraform apply (workload-azure)"
+    deps: [azure:init]
+    dir: "{{.AZ_DIR}}"
+    cmds:
+      - |
+        terraform apply -auto-approve -input=false -lock-timeout=10m -no-color \
+          -var="prefix={{.PREFIX}}" \
+          -var="location={{.LOCATION}}" \
+          -var="rg_name={{.RG_NAME}}" \
+          -var="adls_name={{.ADLS_NAME}}" \
+          -var="workspace_sku={{.WORKSPACE_SKU}}"
+
+  azure:destroy:
+    desc: "Terraform destroy (workload-azure)"
+    deps: [azure:init]
+    dir: "{{.AZ_DIR}}"
+    cmds:
+      - |
+        terraform destroy -auto-approve -input=false -lock-timeout=10m -no-color \
+          -var="prefix={{.PREFIX}}" \
+          -var="location={{.LOCATION}}" \
+          -var="rg_name={{.RG_NAME}}" \
+          -var="adls_name={{.ADLS_NAME}}" \
+          -var="workspace_sku={{.WORKSPACE_SKU}}"
+
+  azure:outputs:
+    desc: "Print and export workload-azure Terraform outputs to .env.dbx"
+    deps: [azure:init]
+    silent: true
+    cmds:
+      - |
+        set -euo pipefail
+        WS_ID=$(terraform -chdir="{{.AZ_DIR}}" output -raw workspace_resource_id)
+        WS_NAME=$(terraform -chdir="{{.AZ_DIR}}" output -raw workspace_name 2>/dev/null || true)
+        AC_ID=$(terraform -chdir="{{.AZ_DIR}}" output -raw access_connector_id)
+        SA_NAME=$(terraform -chdir="{{.AZ_DIR}}" output -raw storage_account_name)
+        UC_CONT=$(terraform -chdir="{{.AZ_DIR}}" output -raw uc_root_container)
+        echo "WORKSPACE_RESOURCE_ID=${WS_ID}"
+        echo "WORKSPACE_NAME=${WS_NAME}"
+        echo "ACCESS_CONNECTOR_ID=${AC_ID}"
+        echo "STORAGE_ACCOUNT_NAME=${SA_NAME}"
+        echo "UC_ROOT_CONTAINER=${UC_CONT}"
+        {
+          echo "WORKSPACE_RESOURCE_ID=${WS_ID}"
+          echo "WORKSPACE_NAME=${WS_NAME}"
+          echo "ACCESS_CONNECTOR_ID=${AC_ID}"
+          echo "STORAGE_ACCOUNT_NAME=${SA_NAME}"
+          echo "UC_ROOT_CONTAINER=${UC_CONT}"
+        } > "{{.ROOT}}/.env.dbx"
+
+  # =========================================================
+  # Workload: DBX (infra/workload-dbx)
+  # =========================================================
+  dbx:init-azure:
+    desc: "Init workload-azure backend (for reading outputs)"
+    dir: "{{.AZ_DIR}}"
+    cmds:
+      - |
+        terraform init \
+          -backend-config="resource_group_name={{.TFSTATE_RG_NAME}}" \
+          -backend-config="storage_account_name={{.TFSTATE_SA_NAME}}" \
+          -backend-config="container_name={{.TFSTATE_CONTAINER}}" \
+          -backend-config="key={{.TFSTATE_KEY_AZ}}"
+
+  dbx:capture-outputs:
+    desc: "Capture workload-azure outputs and save to .env.dbx"
+    deps: [dbx:init-azure]
+    cmds:
+      - task: azure:outputs
+
+  dbx:init:
+    desc: "Terraform init (workload-dbx) with remote backend (AAD auth)"
+    dir: "{{.DBX_DIR}}"
+    deps: [dbx:capture-outputs]
+    env:
+      STATE_KEY: "{{.TFSTATE_KEY_DBX}}"
+    cmds:
+      - task: dbx:capture-outputs         # ensure azure outputs are available
+      - |
+        set -euo pipefail
+        echo "[dotenv check]"
+        env | grep -E '^(WORKSPACE_|ACCESS_CONNECTOR_ID|STORAGE_ACCOUNT_NAME|UC_ROOT_CONTAINER)=' || true
+        terraform init -upgrade -reconfigure \
+          -backend-config="resource_group_name={{.TFSTATE_RG_NAME}}" \
+          -backend-config="storage_account_name={{.TFSTATE_SA_NAME}}" \
+          -backend-config="container_name={{.TFSTATE_CONTAINER}}" \
+          -backend-config="key={{.TFSTATE_KEY_DBX}}" \
+          -backend-config="use_azuread_auth=true"
+
+  dbx:plan:
+    desc: "Terraform plan (workload-dbx)"
+    deps: [dbx:init]
+    dir: "{{.DBX_DIR}}"
+    dotenv: ["{{.ROOT}}/.env.dbx", "{{.ROOT}}/.env"]
+    env:
+      DATABRICKS_HOST: ""
+      DATABRICKS_TOKEN: ""
+      DATABRICKS_WAREHOUSE_ID: "" 
+    cmds:
+      - |
+        set -euo pipefail
+        echo "ARM_SUB=${ARM_SUBSCRIPTION_ID:-<none>}"
+        test -n "{{.DATABRICKS_ACCOUNT_ID}}" || { echo "DATABRICKS_ACCOUNT_ID is required (set var or .env)"; exit 1; }
+        terraform plan -input=false -no-color \
+          -var="subscription_id={{.AZURE_SUBSCRIPTION_ID}}" \
+          -var="azure_tenant_id={{.AZURE_TENANT_ID}}" \
+          -var="databricks_account_id={{.DATABRICKS_ACCOUNT_ID}}" \
+          -var="azure_workspace_resource_id=${WORKSPACE_RESOURCE_ID}" \
+          -var="workspace_name=${WORKSPACE_NAME}" \
+          -var="resource_group_name={{.RG_NAME}}" \
+          -var="access_connector_id=${ACCESS_CONNECTOR_ID}" \
+          -var="storage_account_name=${STORAGE_ACCOUNT_NAME}" \
+          -var="uc_root_container=${UC_ROOT_CONTAINER}" \
+          -var="catalog_name={{.CATALOG_NAME}}" \
+          -var='schema_names={{.SCHEMAS_JSON}}'
+  dbx:refresh:
+    desc: "Refresh-only plan (no changes)"
+    deps: [dbx:init]
+    dir: "{{.DBX_DIR}}"
+    dotenv: ["{{.ROOT}}/.env.dbx", "{{.ROOT}}/.env"]
+    env:
+      DATABRICKS_HOST: ""
+      DATABRICKS_TOKEN: ""
+      DATABRICKS_WAREHOUSE_ID: "" 
+    cmds:
+      - |
+        set -euo pipefail
+        echo "ARM_SUB=${ARM_SUBSCRIPTION_ID:-<none>}"
+        test -n "{{.DATABRICKS_ACCOUNT_ID}}" || { echo "DATABRICKS_ACCOUNT_ID is required (set var or .env)"; exit 1; }
+        terraform plan -refresh-only -input=false -no-color \
+          -var="subscription_id={{.AZURE_SUBSCRIPTION_ID}}" \
+          -var="azure_tenant_id={{.AZURE_TENANT_ID}}" \
+          -var="databricks_account_id={{.DATABRICKS_ACCOUNT_ID}}" \
+          -var="azure_workspace_resource_id=${WORKSPACE_RESOURCE_ID}" \
+          -var="workspace_name=${WORKSPACE_NAME}" \
+          -var="resource_group_name={{.RG_NAME}}" \
+          -var="access_connector_id=${ACCESS_CONNECTOR_ID}" \
+          -var="storage_account_name=${STORAGE_ACCOUNT_NAME}" \
+          -var="uc_root_container=${UC_ROOT_CONTAINER}" \
+          -var="catalog_name={{.CATALOG_NAME}}" \
+          -var='schema_names={{.SCHEMAS_JSON}}'
+
+  dbx:apply:
+    desc: "Terraform apply (workload-dbx)"
+    deps: [dbx:init]
+    dir: "{{.DBX_DIR}}"
+    dotenv: ["{{.ROOT}}/.env.dbx", "{{.ROOT}}/.env"]
+    env:
+      DATABRICKS_HOST: ""
+      DATABRICKS_TOKEN: ""
+      DATABRICKS_WAREHOUSE_ID: "" 
+    cmds:
+      - |
+        test -n "{{.DATABRICKS_ACCOUNT_ID}}" || { echo "DATABRICKS_ACCOUNT_ID is required (set var or .env)"; exit 1; }
+        terraform apply -auto-approve -input=false -lock-timeout=10m -no-color \
+          -var="subscription_id={{.AZURE_SUBSCRIPTION_ID}}" \
+          -var="azure_tenant_id={{.AZURE_TENANT_ID}}" \
+          -var="databricks_account_id={{.DATABRICKS_ACCOUNT_ID}}" \
+          -var="azure_workspace_resource_id=${WORKSPACE_RESOURCE_ID}" \
+          -var="workspace_name=${WORKSPACE_NAME}" \
+          -var="resource_group_name={{.RG_NAME}}" \
+          -var="access_connector_id=${ACCESS_CONNECTOR_ID}" \
+          -var="storage_account_name=${STORAGE_ACCOUNT_NAME}" \
+          -var="uc_root_container=${UC_ROOT_CONTAINER}" \
+          -var="catalog_name={{.CATALOG_NAME}}" \
+          -var='schema_names={{.SCHEMAS_JSON}}'
+  dbx:destroy:
+    desc: "Destroy all Databricks workspace-scope and account-scope resources (safe full teardown)"
+    deps: [dbx:init]
+    dir: "{{.DBX_DIR}}"
+    dotenv: ["{{.ROOT}}/.env.dbx", "{{.ROOT}}/.env"]
+    env:
+      DATABRICKS_HOST: ""
+      DATABRICKS_TOKEN: ""
+      DATABRICKS_WAREHOUSE_ID: ""
+    cmds:
+      - |
+        set -euo pipefail
+        echo "==> Starting full Databricks teardown (grants → schema → catalog → extloc/cred → assignment → metastore)"
+        test -n "{{.DATABRICKS_ACCOUNT_ID}}" || { echo "DATABRICKS_ACCOUNT_ID is required (set var or .env)"; exit 1; }
+
+        COMMON_VARS="
+          -var=subscription_id={{.AZURE_SUBSCRIPTION_ID}}
+          -var=azure_tenant_id={{.AZURE_TENANT_ID}}
+          -var=databricks_account_id={{.DATABRICKS_ACCOUNT_ID}}
+          -var=azure_workspace_resource_id=${WORKSPACE_RESOURCE_ID}
+          -var=workspace_name=${WORKSPACE_NAME}
+          -var=resource_group_name={{.RG_NAME}}
+          -var=access_connector_id=${ACCESS_CONNECTOR_ID}
+          -var=storage_account_name=${STORAGE_ACCOUNT_NAME}
+          -var=uc_root_container=${UC_ROOT_CONTAINER}
+          -var=catalog_name={{.CATALOG_NAME}}
+          -var=schema_names={{.SCHEMAS_JSON}}
+        "
+
+        echo "==> Step 1: Destroy grants"
+        terraform destroy -auto-approve -input=false -lock-timeout=10m -no-color \
+          $COMMON_VARS \
+          -target=databricks_grants.schema_grants \
+          -target=databricks_grants.catalog_grants || true
+
+        echo "==> Step 2: Destroy schemas"
+        terraform destroy -auto-approve -input=false -lock-timeout=10m -no-color \
+          $COMMON_VARS \
+          -target=databricks_schema.schemas || true
+
+        echo "==> Step 3: Destroy catalog"
+        terraform destroy -auto-approve -input=false -lock-timeout=10m -no-color \
+          $COMMON_VARS \
+          -target=databricks_catalog.catalog || true
+
+        echo "==> Step 4: Destroy external location and storage credential"
+        terraform destroy -auto-approve -input=false -lock-timeout=10m -no-color \
+          $COMMON_VARS \
+          -target=databricks_external_location.uc_root \
+          -target=databricks_storage_credential.mi || true
+
+        echo "==> Step 5: Detach metastore assignment"
+        terraform destroy -auto-approve -input=false -lock-timeout=10m -no-color \
+          $COMMON_VARS \
+          -target=databricks_metastore_assignment.this || true
+
+        echo "==> Step 6: Destroy metastore itself (if empty and prevent_destroy removed)"
+        terraform destroy -auto-approve -input=false -lock-timeout=10m -no-color \
+          $COMMON_VARS \
+          -target=databricks_metastore.this || true
+
+        echo "✅ Databricks teardown completed."
+  # dbx:destroy:
+  #   desc: "Terraform destroy (workload-dbx)"
+  #   deps: [dbx:init]
+  #   dir: "{{.DBX_DIR}}"
+  #   dotenv: ["{{.ROOT}}/.env.dbx", "{{.ROOT}}/.env"]
+  #   env:
+  #     DATABRICKS_HOST: ""
+  #     DATABRICKS_TOKEN: ""
+  #     DATABRICKS_WAREHOUSE_ID: "" 
+  #   cmds:
+  #     - |
+  #       test -n "{{.DATABRICKS_ACCOUNT_ID}}" || { echo "DATABRICKS_ACCOUNT_ID is required (set var or .env)"; exit 1; }
+  #       terraform destroy -auto-approve -input=false -lock-timeout=10m -no-color \
+  #         -var="subscription_id={{.AZURE_SUBSCRIPTION_ID}}" \
+  #         -var="azure_tenant_id={{.AZURE_TENANT_ID}}" \
+  #         -var="databricks_account_id={{.DATABRICKS_ACCOUNT_ID}}" \
+  #         -var="azure_workspace_resource_id=${WORKSPACE_RESOURCE_ID}" \
+  #         -var="workspace_name=${WORKSPACE_NAME}" \
+  #         -var="resource_group_name={{.RG_NAME}}" \
+  #         -var="access_connector_id=${ACCESS_CONNECTOR_ID}" \
+  #         -var="storage_account_name=${STORAGE_ACCOUNT_NAME}" \
+  #         -var="uc_root_container=${UC_ROOT_CONTAINER}" \
+  #         -var="catalog_name={{.CATALOG_NAME}}" \
+  #         -var='schema_names={{.SCHEMAS_JSON}}'
+
+  # =========================================================
+  # Orchestrated flows (mirror CI intent)
+  # =========================================================
+  plan:all:
+    desc: "Plan azure -> dbx in order"
+    cmds:
+      - task: azure:plan
+      - task: dbx:plan
+
+  apply:all:
+    desc: "Apply azure -> dbx in order"
+    cmds:
+      - task: azure:apply
+      - task: dbx:apply
+
+  destroy:all:
+    desc: "Destroy dbx -> azure (reverse order)"
+    cmds:
+      - task: dbx:destroy
+      - task: azure:destroy
+
+  # =========================================================
+  # Guards & utilities
+  # =========================================================
+  check:env:
+    desc: "Verify required environment variables are present"
+    cmds:
+      - test -n "{{.AZURE_SUBSCRIPTION_ID}}" || (echo "Missing AZURE_SUBSCRIPTION_ID"; exit 1)
+      - test -n "{{.AZURE_TENANT_ID}}" || (echo "Missing AZURE_TENANT_ID"; exit 1)
+      - echo "Azure env OK"
+      - test -n "{{.DATABRICKS_HOST}}" || (echo "Missing DATABRICKS_HOST"; exit 1)
+      - echo "Databricks host OK"
+      - echo "Tip:\ Never store secrets in VCS. Prefer OIDC over long-lived tokens."
+
+  tidy:
+    desc: "Clean temporary files (.terraform, plan files)"
+    cmds:
+      - find "{{.TF_DIR}}" -maxdepth 1 -name "{{.PLAN}}" -delete || true
+      - rm -rf "{{.TF_DIR}}/.terraform" || true
+      - echo "Cleaned plan file and .terraform directory"
