@@ -6,6 +6,10 @@ terraform {
       source  = "databricks/databricks"
       version = "~> 1.95"
     }
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 4.0"
+    }
   }
 
   # Configured by Taskfile (azurerm remote backend)
@@ -17,9 +21,11 @@ terraform {
 # - Used for UC (metastore, assignment, account-level ops)
 # ----------------------------
 provider "databricks" {
-  alias      = "account"
-  host       = "https://accounts.azuredatabricks.net"
-  account_id = var.databricks_account_id
+  alias           = "account"
+  host            = "https://accounts.azuredatabricks.net"
+  account_id      = var.databricks_account_id
+  auth_type       = "azure-cli"
+  azure_tenant_id = var.azure_tenant_id
 }
 
 # ----------------------------
@@ -29,4 +35,12 @@ provider "databricks" {
 provider "databricks" {
   alias                       = "workspace"
   azure_workspace_resource_id = var.azure_workspace_resource_id
+  auth_type                   = "azure-cli"
+  azure_tenant_id             = var.azure_tenant_id
+}
+
+provider "azurerm" {
+  features {}
+  use_cli         = true
+  subscription_id = var.subscription_id
 }

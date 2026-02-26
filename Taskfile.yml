@@ -17,6 +17,7 @@ dotenv:
 # -----------------------------------------------------------
 vars:
   # === Generic ===
+  ROOT: '{{.TASKFILE_DIR}}'
   TF_DIR: "{{.TF_DIR | default `infra/workload-azure`}}"
   PLAN: "{{.PLAN | default `plan.bin`}}"
   ENV: "{{.ENV | default `dev`}}"
@@ -424,7 +425,7 @@ tasks:
           echo "ACCESS_CONNECTOR_ID=${AC_ID}"
           echo "STORAGE_ACCOUNT_NAME=${SA_NAME}"
           echo "UC_ROOT_CONTAINER=${UC_CONT}"
-        } > .env.dbx
+        } > "{{.ROOT}}/.env.dbx"
 
   # =========================================================
   # Workload: DBX (infra/workload-dbx)
@@ -455,6 +456,9 @@ tasks:
     cmds:
       - task: dbx:capture-outputs         # ensure azure outputs are available
       - |
+        set -euo pipefail
+        echo "[dotenv check]"
+        env | grep -E '^(WORKSPACE_|ACCESS_CONNECTOR_ID|STORAGE_ACCOUNT_NAME|UC_ROOT_CONTAINER)=' || true
         terraform init -upgrade -reconfigure \
           -backend-config="resource_group_name={{.TFSTATE_RG_NAME}}" \
           -backend-config="storage_account_name={{.TFSTATE_SA_NAME}}" \
@@ -466,15 +470,49 @@ tasks:
     desc: "Terraform plan (workload-dbx)"
     deps: [dbx:init]
     dir: "{{.DBX_DIR}}"
-    dotenv: [ ".env.dbx" ]
+    dotenv: ["{{.ROOT}}/.env.dbx", "{{.ROOT}}/.env"]
+    env:
+      DATABRICKS_HOST: ""
+      DATABRICKS_TOKEN: ""
+      DATABRICKS_WAREHOUSE_ID: "" 
     cmds:
       - |
+        set -euo pipefail
+        echo "ARM_SUB=${ARM_SUBSCRIPTION_ID:-<none>}"
         test -n "{{.DATABRICKS_ACCOUNT_ID}}" || { echo "DATABRICKS_ACCOUNT_ID is required (set var or .env)"; exit 1; }
         terraform plan -input=false -no-color \
+          -var="subscription_id={{.AZURE_SUBSCRIPTION_ID}}" \
+          -var="azure_tenant_id={{.AZURE_TENANT_ID}}" \
           -var="databricks_account_id={{.DATABRICKS_ACCOUNT_ID}}" \
           -var="azure_workspace_resource_id=${WORKSPACE_RESOURCE_ID}" \
           -var="workspace_name=${WORKSPACE_NAME}" \
-          -var="workspace_id=${WORKSPACE_ID}" \ 
+          -var="resource_group_name={{.RG_NAME}}" \
+          -var="access_connector_id=${ACCESS_CONNECTOR_ID}" \
+          -var="storage_account_name=${STORAGE_ACCOUNT_NAME}" \
+          -var="uc_root_container=${UC_ROOT_CONTAINER}" \
+          -var="catalog_name={{.CATALOG_NAME}}" \
+          -var='schema_names={{.SCHEMAS_JSON}}'
+  dbx:refresh:
+    desc: "Refresh-only plan (no changes)"
+    deps: [dbx:init]
+    dir: "{{.DBX_DIR}}"
+    dotenv: ["{{.ROOT}}/.env.dbx", "{{.ROOT}}/.env"]
+    env:
+      DATABRICKS_HOST: ""
+      DATABRICKS_TOKEN: ""
+      DATABRICKS_WAREHOUSE_ID: "" 
+    cmds:
+      - |
+        set -euo pipefail
+        echo "ARM_SUB=${ARM_SUBSCRIPTION_ID:-<none>}"
+        test -n "{{.DATABRICKS_ACCOUNT_ID}}" || { echo "DATABRICKS_ACCOUNT_ID is required (set var or .env)"; exit 1; }
+        terraform plan -refresh-only -input=false -no-color \
+          -var="subscription_id={{.AZURE_SUBSCRIPTION_ID}}" \
+          -var="azure_tenant_id={{.AZURE_TENANT_ID}}" \
+          -var="databricks_account_id={{.DATABRICKS_ACCOUNT_ID}}" \
+          -var="azure_workspace_resource_id=${WORKSPACE_RESOURCE_ID}" \
+          -var="workspace_name=${WORKSPACE_NAME}" \
+          -var="resource_group_name={{.RG_NAME}}" \
           -var="access_connector_id=${ACCESS_CONNECTOR_ID}" \
           -var="storage_account_name=${STORAGE_ACCOUNT_NAME}" \
           -var="uc_root_container=${UC_ROOT_CONTAINER}" \
@@ -485,37 +523,112 @@ tasks:
     desc: "Terraform apply (workload-dbx)"
     deps: [dbx:init]
     dir: "{{.DBX_DIR}}"
-    dotenv: [ ".env.dbx" ]
+    dotenv: ["{{.ROOT}}/.env.dbx", "{{.ROOT}}/.env"]
+    env:
+      DATABRICKS_HOST: ""
+      DATABRICKS_TOKEN: ""
+      DATABRICKS_WAREHOUSE_ID: "" 
     cmds:
       - |
         test -n "{{.DATABRICKS_ACCOUNT_ID}}" || { echo "DATABRICKS_ACCOUNT_ID is required (set var or .env)"; exit 1; }
         terraform apply -auto-approve -input=false -lock-timeout=10m -no-color \
+          -var="subscription_id={{.AZURE_SUBSCRIPTION_ID}}" \
+          -var="azure_tenant_id={{.AZURE_TENANT_ID}}" \
           -var="databricks_account_id={{.DATABRICKS_ACCOUNT_ID}}" \
           -var="azure_workspace_resource_id=${WORKSPACE_RESOURCE_ID}" \
           -var="workspace_name=${WORKSPACE_NAME}" \
-          -var="workspace_id=${WORKSPACE_ID}" \ 
+          -var="resource_group_name={{.RG_NAME}}" \
           -var="access_connector_id=${ACCESS_CONNECTOR_ID}" \
           -var="storage_account_name=${STORAGE_ACCOUNT_NAME}" \
           -var="uc_root_container=${UC_ROOT_CONTAINER}" \
           -var="catalog_name={{.CATALOG_NAME}}" \
           -var='schema_names={{.SCHEMAS_JSON}}'
-
   dbx:destroy:
-    desc: "Terraform destroy (workload-dbx)"
+    desc: "Destroy all Databricks workspace-scope and account-scope resources (safe full teardown)"
     deps: [dbx:init]
     dir: "{{.DBX_DIR}}"
-    dotenv: [ ".env.dbx" ]
+    dotenv: ["{{.ROOT}}/.env.dbx", "{{.ROOT}}/.env"]
+    env:
+      DATABRICKS_HOST: ""
+      DATABRICKS_TOKEN: ""
+      DATABRICKS_WAREHOUSE_ID: ""
     cmds:
       - |
+        set -euo pipefail
+        echo "==> Starting full Databricks teardown (grants → schema → catalog → extloc/cred → assignment → metastore)"
         test -n "{{.DATABRICKS_ACCOUNT_ID}}" || { echo "DATABRICKS_ACCOUNT_ID is required (set var or .env)"; exit 1; }
+
+        COMMON_VARS="
+          -var=subscription_id={{.AZURE_SUBSCRIPTION_ID}}
+          -var=azure_tenant_id={{.AZURE_TENANT_ID}}
+          -var=databricks_account_id={{.DATABRICKS_ACCOUNT_ID}}
+          -var=azure_workspace_resource_id=${WORKSPACE_RESOURCE_ID}
+          -var=workspace_name=${WORKSPACE_NAME}
+          -var=resource_group_name={{.RG_NAME}}
+          -var=access_connector_id=${ACCESS_CONNECTOR_ID}
+          -var=storage_account_name=${STORAGE_ACCOUNT_NAME}
+          -var=uc_root_container=${UC_ROOT_CONTAINER}
+          -var=catalog_name={{.CATALOG_NAME}}
+          -var=schema_names={{.SCHEMAS_JSON}}
+        "
+
+        echo "==> Step 1: Destroy grants"
         terraform destroy -auto-approve -input=false -lock-timeout=10m -no-color \
-          -var="databricks_account_id={{.DATABRICKS_ACCOUNT_ID}}" \
-          -var="azure_workspace_resource_id=${WORKSPACE_RESOURCE_ID}" \
-          -var="access_connector_id=${ACCESS_CONNECTOR_ID}" \
-          -var="storage_account_name=${STORAGE_ACCOUNT_NAME}" \
-          -var="uc_root_container=${UC_ROOT_CONTAINER}" \
-          -var="catalog_name={{.CATALOG_NAME}}" \
-          -var='schema_names={{.SCHEMAS_JSON}}'
+          $COMMON_VARS \
+          -target=databricks_grants.schema_grants \
+          -target=databricks_grants.catalog_grants || true
+
+        echo "==> Step 2: Destroy schemas"
+        terraform destroy -auto-approve -input=false -lock-timeout=10m -no-color \
+          $COMMON_VARS \
+          -target=databricks_schema.schemas || true
+
+        echo "==> Step 3: Destroy catalog"
+        terraform destroy -auto-approve -input=false -lock-timeout=10m -no-color \
+          $COMMON_VARS \
+          -target=databricks_catalog.catalog || true
+
+        echo "==> Step 4: Destroy external location and storage credential"
+        terraform destroy -auto-approve -input=false -lock-timeout=10m -no-color \
+          $COMMON_VARS \
+          -target=databricks_external_location.uc_root \
+          -target=databricks_storage_credential.mi || true
+
+        echo "==> Step 5: Detach metastore assignment"
+        terraform destroy -auto-approve -input=false -lock-timeout=10m -no-color \
+          $COMMON_VARS \
+          -target=databricks_metastore_assignment.this || true
+
+        echo "==> Step 6: Destroy metastore itself (if empty and prevent_destroy removed)"
+        terraform destroy -auto-approve -input=false -lock-timeout=10m -no-color \
+          $COMMON_VARS \
+          -target=databricks_metastore.this || true
+
+        echo "✅ Databricks teardown completed."
+  # dbx:destroy:
+  #   desc: "Terraform destroy (workload-dbx)"
+  #   deps: [dbx:init]
+  #   dir: "{{.DBX_DIR}}"
+  #   dotenv: ["{{.ROOT}}/.env.dbx", "{{.ROOT}}/.env"]
+  #   env:
+  #     DATABRICKS_HOST: ""
+  #     DATABRICKS_TOKEN: ""
+  #     DATABRICKS_WAREHOUSE_ID: "" 
+  #   cmds:
+  #     - |
+  #       test -n "{{.DATABRICKS_ACCOUNT_ID}}" || { echo "DATABRICKS_ACCOUNT_ID is required (set var or .env)"; exit 1; }
+  #       terraform destroy -auto-approve -input=false -lock-timeout=10m -no-color \
+  #         -var="subscription_id={{.AZURE_SUBSCRIPTION_ID}}" \
+  #         -var="azure_tenant_id={{.AZURE_TENANT_ID}}" \
+  #         -var="databricks_account_id={{.DATABRICKS_ACCOUNT_ID}}" \
+  #         -var="azure_workspace_resource_id=${WORKSPACE_RESOURCE_ID}" \
+  #         -var="workspace_name=${WORKSPACE_NAME}" \
+  #         -var="resource_group_name={{.RG_NAME}}" \
+  #         -var="access_connector_id=${ACCESS_CONNECTOR_ID}" \
+  #         -var="storage_account_name=${STORAGE_ACCOUNT_NAME}" \
+  #         -var="uc_root_container=${UC_ROOT_CONTAINER}" \
+  #         -var="catalog_name={{.CATALOG_NAME}}" \
+  #         -var='schema_names={{.SCHEMAS_JSON}}'
 
   # =========================================================
   # Orchestrated flows (mirror CI intent)

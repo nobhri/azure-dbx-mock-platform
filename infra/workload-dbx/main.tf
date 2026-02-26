@@ -5,26 +5,56 @@ locals {
   storage_root_abfss = "abfss://${var.uc_root_container}@${var.storage_account_name}.dfs.core.windows.net/"
 }
 
+# -------------------------------------------------------------------
+# Derive workspace info
+# -------------------------------------------------------------------
+
+data "azurerm_databricks_workspace" "ws" {
+  # name / resource_group_name でも良いけど、IDがあるのでシンプルに
+  name                = var.workspace_name
+  resource_group_name = var.resource_group_name
+}
+
+# numeric workspace_id を local に格納
+locals {
+  # azurerm 側は number（環境によって string のこともある）。万一に備えて tonumber を噛ませてもOK
+  workspace_id = try(
+    tonumber(data.azurerm_databricks_workspace.ws.workspace_id),
+    data.azurerm_databricks_workspace.ws.workspace_id
+  )
+}
+
+locals {
+  azure_region = lower(replace(data.azurerm_databricks_workspace.ws.location, " ", ""))
+}
+
+
 
 # -------------------------------------------------------------------
 # Unity Catalog Metastore (ACCOUNT SCOPE)
 # -------------------------------------------------------------------
+
 resource "databricks_metastore" "this" {
-  provider     = databricks.account
+  provider = databricks.account
 
-  name         = "mvp-metastore"
-  storage_root = local.storage_root_abfss
-  owner        = "account_admin"
+  # name         = "mvp-metastore"
+  name = var.catalog_name
+  # storage_root = local.storage_root_abfss
+  storage_root = "abfss://${var.uc_root_container}@${var.storage_account_name}.dfs.core.windows.net/30ebd5eb-ba32-4617-b715-1bbad2ad51e0"
+  # TODO: parameterize hardcoded metastore ID.
+  lifecycle {
+    ignore_changes  = [storage_root, owner]
+    # prevent_destroy = true # enable if you want to keep this metastore permananent.
+  }
+  region = local.azure_region
 
-  # In Azure you can leave "auto" or set an explicit region like "japaneast".
-  region       = "auto"
 }
 
 # Attach workspace (by numeric workspace_id) to the metastore
 resource "databricks_metastore_assignment" "this" {
   provider     = databricks.account
   metastore_id = databricks_metastore.this.id
-  workspace_id = var.workspace_id 
+  workspace_id = local.workspace_id
 }
 
 # -------------------------------------------------------------------
@@ -61,53 +91,57 @@ resource "databricks_external_location" "uc_root" {
   depends_on = [databricks_metastore_assignment.this]
 }
 
-# Catalog under the attached metastore
-resource "databricks_catalog" "catalog" {
-  provider = databricks.workspace
-  name     = var.catalog_name
-  comment  = "Catalog for the mock data platform"
+# catalog and schema are going to be created with DDL SQL
 
-  properties = {
-    purpose = "mvp"
-  }
+# # Catalog under the attached metastore
+# resource "databricks_catalog" "catalog" {
+#   provider = databricks.workspace
+#   name     = var.catalog_name
+#   comment  = "Catalog for the mock data platform"
 
-  depends_on = [databricks_metastore_assignment.this]
-}
+#   properties = {
+#     purpose = "mvp"
+#   }
 
-# Schemas under the catalog
-resource "databricks_schema" "schemas" {
-  for_each     = toset(var.schema_names)
-  provider     = databricks.workspace
-  name         = each.key
-  catalog_name = databricks_catalog.catalog.name
-  comment      = "Schema ${each.key}"
+#   depends_on = [databricks_metastore_assignment.this]
+# }
 
-  depends_on = [databricks_metastore_assignment.this]
-}
+# # Schemas under the catalog
+# resource "databricks_schema" "schemas" {
+#   for_each     = toset(var.schema_names)
+#   provider     = databricks.workspace
+#   name         = each.key
+#   catalog_name = databricks_catalog.catalog.name
+#   comment      = "Schema ${each.key}"
 
-# Basic grants (adjust to your security model later)
-resource "databricks_grants" "catalog_grants" {
-  provider = databricks.workspace
-  catalog  = databricks_catalog.catalog.name
+#   depends_on = [databricks_metastore_assignment.this]
+# }
 
-  grant {
-    principal  = "account users"
-    privileges = ["USE_CATALOG"]
-  }
+# # Basic grants (adjust to your security model later)
+# resource "databricks_grants" "catalog_grants" {
+#   provider = databricks.workspace
+#   catalog  = databricks_catalog.catalog.name
 
-  depends_on = [databricks_metastore_assignment.this]
-}
+#   grant {
+#     principal  = "account users"
+#     privileges = ["USE_CATALOG", "USE_SCHEMA"]
+#   }
 
-resource "databricks_grants" "schema_grants" {
-  for_each = databricks_schema.schemas
-  provider = databricks.workspace
-  schema   = each.value.name
-  catalog  = databricks_catalog.catalog.name
+#   depends_on = [databricks_metastore_assignment.this]
+# }
 
-  grant {
-    principal  = "account users"
-    privileges = ["USE_SCHEMA"]
-  }
+# resource "databricks_grants" "schema_grants" {
+#   for_each = toset(var.schema_names)
+#   provider = databricks.workspace
+#   schema   = databricks_schema.schemas[each.key].id
+#   catalog  = databricks_catalog.catalog.name
 
-  depends_on = [databricks_metastore_assignment.this]
-}
+#   grant {
+#     principal  = "account users"
+#     privileges = ["USE_SCHEMA"]
+#   }
+
+#   depends_on = [
+#     databricks_schema.schemas
+#   ]
+# }
