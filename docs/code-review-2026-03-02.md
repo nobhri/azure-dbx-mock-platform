@@ -341,7 +341,7 @@ No credentials, tokens, or secrets were found anywhere in the codebase.
 | 7 | LOW | No `tflint` or `checkov` runs in CI/CD (tasks exist but not invoked) | `Taskfile.yml`, all workflows | [#11](https://github.com/nobhri/azure-dbx-mock-platform/issues/11) | Open |
 | 8 | LOW | `terraform.tfstate` in repo root suggests manual local execution | Repo root | [#12](https://github.com/nobhri/azure-dbx-mock-platform/issues/12) | Open |
 | 9 | HIGH | SP lacks `User Access Administrator` — `workload-azure` destroy fails with 403 when Terraform deletes `azurerm_role_assignment.ac_blob_contrib`; `Contributor` role does not include `Microsoft.Authorization/roleAssignments/delete` | Azure IAM (subscription scope) | [#21](https://github.com/nobhri/azure-dbx-mock-platform/issues/21) | Open |
-| 10 | LOW | "Read outputs" step (`if: always()`) runs after destroy and writes ANSI warning text to `$GITHUB_OUTPUT`; fix: `if: always() && inputs.destroy != true` | `workload-azure.yaml:113` | [#22](https://github.com/nobhri/azure-dbx-mock-platform/issues/22) | Open |
+| 10 | LOW | "Read outputs" step (`if: always()`) runs after destroy and writes ANSI warning text to `$GITHUB_OUTPUT`; fix: `if: always() && inputs.destroy != true` | `workload-azure.yaml:113` | [#22](https://github.com/nobhri/azure-dbx-mock-platform/issues/22) | **Fixed — PR #24** |
 
 ---
 
@@ -369,7 +369,7 @@ No credentials, tokens, or secrets were found anywhere in the codebase.
 4. ~~**Grant `CREATE EXTERNAL LOCATION` on the UC metastore to the SP**~~ **Done** — Option A SQL grant applied; workflow dispatch succeeded. → [Issue #19](https://github.com/nobhri/azure-dbx-mock-platform/issues/19) **Note:** this grant must be re-applied manually after each full destroy/recreate cycle (destroy `workload-dbx` → destroy `workload-azure` → apply `workload-azure` → apply `workload-dbx` → re-run grant). See [issue #19 comment](https://github.com/nobhri/azure-dbx-mock-platform/issues/19#issuecomment-3982908383) for full procedure.
 4. **Move `ADLS_NAME`** to a GitHub Secret and reference it as `${{ secrets.ADLS_STORAGE_NAME }}` in `workload-azure.yaml` → [Issue #7](https://github.com/nobhri/azure-dbx-mock-platform/issues/7)
 5. **Grant SP `User Access Administrator`** at subscription scope so Terraform can delete the RBAC role assignment during destroy → [Issue #21](https://github.com/nobhri/azure-dbx-mock-platform/issues/21)
-6. **Guard "Read outputs" step** with `if: always() && inputs.destroy != true` in `workload-azure.yaml` → [Issue #22](https://github.com/nobhri/azure-dbx-mock-platform/issues/22)
+6. ~~**Guard "Read outputs" step** with `if: always() && inputs.destroy != true` in `workload-azure.yaml`~~ **Done — PR #24** → [Issue #22](https://github.com/nobhri/azure-dbx-mock-platform/issues/22)
 
 ### Fix Soon (medium effort)
 
