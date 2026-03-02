@@ -110,7 +110,7 @@ jobs:
 
       # Expose outputs for the dbx workflow to reuse if needed
       - name: Read outputs
-        if: always()
+        if: always() && inputs.destroy != true
         id: tfout
         run: |
           echo "WORKSPACE_RESOURCE_ID=$(terraform -chdir=infra/workload-azure output -raw workspace_resource_id)" >> $GITHUB_OUTPUT
