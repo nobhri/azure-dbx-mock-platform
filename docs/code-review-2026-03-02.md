@@ -301,7 +301,8 @@ No credentials, tokens, or secrets were found anywhere in the codebase.
 | 1a | — | `workspace_name` absent from Destroy step only | `workload-dbx.yaml` destroy step | — | **Fixed — PR #5** |
 | 2 | HIGH | Hardcoded environment-specific metastore UUID | `workload-dbx/main.tf:43` | — | **Fixed — PR #3** |
 | 3 | HIGH | Hardcoded ADLS storage account name | `workload-azure.yaml:29` | [#7](https://github.com/nobhri/azure-dbx-mock-platform/issues/7) | Open |
-| 4 | HIGH | `DATABRICKS_ACCOUNT_ID` GitHub Secret is empty — blocks Plan, Apply, and Destroy (account-scope provider refresh fails on all operations) | GitHub repo secrets | [#15](https://github.com/nobhri/azure-dbx-mock-platform/issues/15) | Open (config, not code) |
+| 4 | HIGH | `DATABRICKS_ACCOUNT_ID` GitHub Secret is empty — blocks Plan, Apply, and Destroy (account-scope provider refresh fails on all operations) | GitHub repo secrets | [#15](https://github.com/nobhri/azure-dbx-mock-platform/issues/15) | **Resolved** — secret added; SP granted Account Admin + Workspace Admin |
+| 4a | HIGH | SP missing Unity Catalog `CREATE EXTERNAL LOCATION` privilege on metastore — `databricks_external_location.uc_root` blocked in all CI runs; Account Admin and Workspace Admin do not automatically confer UC privileges | Databricks Account Console / UC metastore permissions | [#19](https://github.com/nobhri/azure-dbx-mock-platform/issues/19) | Open (bootstrapping, not code) |
 | 5 | LOW | Commented-out catalog/schema resources lack explanation | `workload-dbx/main.tf:96–147` | [#9](https://github.com/nobhri/azure-dbx-mock-platform/issues/9) | Open |
 | 6 | LOW | `SCHEMAS_JSON` escaping issue | `Taskfile.yml:50` | [#10](https://github.com/nobhri/azure-dbx-mock-platform/issues/10) | Open |
 | 7 | LOW | No `tflint` or `checkov` runs in CI/CD (tasks exist but not invoked) | `Taskfile.yml`, all workflows | [#11](https://github.com/nobhri/azure-dbx-mock-platform/issues/11) | Open |
@@ -329,7 +330,8 @@ No credentials, tokens, or secrets were found anywhere in the codebase.
 
 1. ~~**Add `variable "metastore_id" {}`** to `workload-dbx/variables.tf` and replace the hardcoded UUID in `main.tf:43`~~ **Done — PR #3**
 2. ~~**Fix variable mismatch** in `workload-dbx.yaml`: remove `-var="catalog_name=..."` and `-var='schema_names=[...]'` from all 3 steps; add `-var="subscription_id=..."`, `-var="azure_tenant_id=..."`, `-var="resource_group_name=rg-mock-data"` to all 3 steps. Also fix `main.tf:41` referencing undeclared `var.catalog_name`.~~ **Done — PR #14** → [Issue #6](https://github.com/nobhri/azure-dbx-mock-platform/issues/6)
-3. **Set `DATABRICKS_ACCOUNT_ID`** in GitHub repo Secrets — the secret currently resolves to an empty string in CI, blocking Plan, Apply, and Destroy. → [Issue #15](https://github.com/nobhri/azure-dbx-mock-platform/issues/15)
+3. ~~**Grant Databricks Account Admin to the OIDC Service Principal**~~ **Done** — `DATABRICKS_ACCOUNT_ID` secret added and SP granted Account Admin + Workspace Admin. → [Issue #15](https://github.com/nobhri/azure-dbx-mock-platform/issues/15)
+4. **Grant `CREATE EXTERNAL LOCATION` on the UC metastore to the SP** — Account Admin and Workspace Admin do not automatically confer UC privileges. Run as your personal account (metastore admin) in a Databricks notebook: `GRANT CREATE EXTERNAL LOCATION ON METASTORE TO '<SP_client_id>';` → [Issue #19](https://github.com/nobhri/azure-dbx-mock-platform/issues/19)
 4. **Move `ADLS_NAME`** to a GitHub Secret and reference it as `${{ secrets.ADLS_STORAGE_NAME }}` in `workload-azure.yaml` → [Issue #7](https://github.com/nobhri/azure-dbx-mock-platform/issues/7)
 
 ### Fix Soon (medium effort)
