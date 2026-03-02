@@ -222,38 +222,29 @@ Azure Storage Account names must be globally unique and lowercase. This value is
 
 **Fix:** Move to a GitHub Secret (e.g., `ADLS_STORAGE_NAME`) and reference as `${{ secrets.ADLS_STORAGE_NAME }}`.
 
-**Issue (HIGH): SP lacks `User Access Administrator` — destroy fails with 403 on role assignment deletion** → [Issue #21](https://github.com/nobhri/azure-dbx-mock-platform/issues/21)
+**~~Issue (HIGH): SP lacks `User Access Administrator` — destroy fails with 403 on role assignment deletion~~ RESOLVED** → [Issue #21](https://github.com/nobhri/azure-dbx-mock-platform/issues/21)
+
+SP granted `User Access Administrator` at subscription scope on 2026-03-02. Destroy at run [22580628885](https://github.com/nobhri/azure-dbx-mock-platform/actions/runs/22580628885) completed without 403.
+
+**~~Issue (LOW): "Read outputs" step writes ANSI warning text to `$GITHUB_OUTPUT` after destroy~~ FIXED — PR #24** → [Issue #22](https://github.com/nobhri/azure-dbx-mock-platform/issues/22)
+
+`if: always()` changed to `if: always() && inputs.destroy != true`.
+
+**Issue (HIGH): UC account-scope objects orphaned when `workload-azure` is destroyed before `workload-dbx`** → [Issue #26](https://github.com/nobhri/azure-dbx-mock-platform/issues/26)
 
 ```
-AuthorizationFailed: The client '...' does not have authorization to perform action
-'Microsoft.Authorization/roleAssignments/delete' over scope '.../storageAccounts/stdata***edata/...'
+Error: cannot create storage credential: Storage Credential 'uc-mi-credential' already exists
 ```
 
-`Contributor` role does not include `Microsoft.Authorization/roleAssignments/delete`. The SP needs `Owner` or `User Access Administrator` at subscription scope to let Terraform destroy `azurerm_role_assignment.ac_blob_contrib` (`infra/workload-azure/main.tf:54`). This is a manual Azure IAM step — not fixable in the workflow YAML.
+`databricks_storage_credential.mi` and `databricks_external_location.uc_root` are Unity Catalog account-scope objects — they survive workspace deletion. If `workload-azure` is destroyed (and the Access Connector recreated) without first destroying `workload-dbx`, these objects become orphaned: they exist in Databricks pointing to the old MI but cannot be managed by Terraform targeting the new workspace context. The next `workload-dbx` apply plans to create them fresh and fails with "already exists".
 
-**Fix:**
-```bash
-az role assignment create \
-  --assignee <SP_object_id> \
-  --role "User Access Administrator" \
-  --scope /subscriptions/<AZURE_SUBSCRIPTION_ID>
-```
+**Recovery (manual):**
+1. Databricks Account Console → Unity Catalog → External Locations → delete `uc-root-location`
+2. Databricks Account Console → Unity Catalog → Storage Credentials → delete `uc-mi-credential`
+3. Re-run `workload-dbx` apply dispatch
+4. Re-apply `GRANT CREATE EXTERNAL LOCATION` (issue #19 procedure)
 
-Assign at subscription scope (not RG scope) so the permission survives destroy/recreate cycles.
-
-**Issue (LOW): "Read outputs" step writes ANSI warning text to `$GITHUB_OUTPUT` after destroy** → [Issue #22](https://github.com/nobhri/azure-dbx-mock-platform/issues/22)
-
-```
-Unable to process file command 'output' successfully.
-Invalid format '[33m│[0m [0m[1m[33mWarning: [0m[0m[1mNo outputs found[0m'
-```
-
-The "Read outputs" step at line 112 uses `if: always()`, so it runs even after destroy. `terraform output -raw` emits ANSI-encoded warning text when no state exists; the shell `echo "KEY=$(...)"` writes this into `$GITHUB_OUTPUT` in an unparseable format.
-
-**Fix:** Guard the step to skip during destroy:
-```yaml
-if: always() && inputs.destroy != true
-```
+**Prevention:** Always destroy in order — `workload-dbx` first, then `workload-azure`.
 
 ### workload-dbx.yaml
 
@@ -340,8 +331,9 @@ No credentials, tokens, or secrets were found anywhere in the codebase.
 | 6 | LOW | `SCHEMAS_JSON` escaping issue | `Taskfile.yml:50` | [#10](https://github.com/nobhri/azure-dbx-mock-platform/issues/10) | Open |
 | 7 | LOW | No `tflint` or `checkov` runs in CI/CD (tasks exist but not invoked) | `Taskfile.yml`, all workflows | [#11](https://github.com/nobhri/azure-dbx-mock-platform/issues/11) | Open |
 | 8 | LOW | `terraform.tfstate` in repo root suggests manual local execution | Repo root | [#12](https://github.com/nobhri/azure-dbx-mock-platform/issues/12) | Open |
-| 9 | HIGH | SP lacks `User Access Administrator` — `workload-azure` destroy fails with 403 when Terraform deletes `azurerm_role_assignment.ac_blob_contrib`; `Contributor` role does not include `Microsoft.Authorization/roleAssignments/delete` | Azure IAM (subscription scope) | [#21](https://github.com/nobhri/azure-dbx-mock-platform/issues/21) | Open |
+| 9 | HIGH | SP lacks `User Access Administrator` — `workload-azure` destroy fails with 403 when Terraform deletes `azurerm_role_assignment.ac_blob_contrib`; `Contributor` role does not include `Microsoft.Authorization/roleAssignments/delete` | Azure IAM (subscription scope) | [#21](https://github.com/nobhri/azure-dbx-mock-platform/issues/21) | **Resolved** — SP granted `User Access Administrator` at subscription scope (2026-03-02) |
 | 10 | LOW | "Read outputs" step (`if: always()`) runs after destroy and writes ANSI warning text to `$GITHUB_OUTPUT`; fix: `if: always() && inputs.destroy != true` | `workload-azure.yaml:113` | [#22](https://github.com/nobhri/azure-dbx-mock-platform/issues/22) | **Fixed — PR #24** |
+| 11 | HIGH | UC account-scope objects (`uc-mi-credential`, `uc-root-location`) orphaned when `workload-azure` is destroyed before `workload-dbx`; next apply fails with `Storage Credential 'uc-mi-credential' already exists`; recovery requires manual deletion in Databricks Account Console | Databricks Account Console / destroy order | [#26](https://github.com/nobhri/azure-dbx-mock-platform/issues/26) | Open |
 
 ---
 
@@ -368,8 +360,9 @@ No credentials, tokens, or secrets were found anywhere in the codebase.
 3. ~~**Grant Databricks Account Admin to the OIDC Service Principal**~~ **Done** — `DATABRICKS_ACCOUNT_ID` secret added and SP granted Account Admin + Workspace Admin. → [Issue #15](https://github.com/nobhri/azure-dbx-mock-platform/issues/15)
 4. ~~**Grant `CREATE EXTERNAL LOCATION` on the UC metastore to the SP**~~ **Done** — Option A SQL grant applied; workflow dispatch succeeded. → [Issue #19](https://github.com/nobhri/azure-dbx-mock-platform/issues/19) **Note:** this grant must be re-applied manually after each full destroy/recreate cycle (destroy `workload-dbx` → destroy `workload-azure` → apply `workload-azure` → apply `workload-dbx` → re-run grant). See [issue #19 comment](https://github.com/nobhri/azure-dbx-mock-platform/issues/19#issuecomment-3982908383) for full procedure.
 4. **Move `ADLS_NAME`** to a GitHub Secret and reference it as `${{ secrets.ADLS_STORAGE_NAME }}` in `workload-azure.yaml` → [Issue #7](https://github.com/nobhri/azure-dbx-mock-platform/issues/7)
-5. **Grant SP `User Access Administrator`** at subscription scope so Terraform can delete the RBAC role assignment during destroy → [Issue #21](https://github.com/nobhri/azure-dbx-mock-platform/issues/21)
+5. ~~**Grant SP `User Access Administrator`** at subscription scope so Terraform can delete the RBAC role assignment during destroy~~ **Done** (2026-03-02) → [Issue #21](https://github.com/nobhri/azure-dbx-mock-platform/issues/21)
 6. ~~**Guard "Read outputs" step** with `if: always() && inputs.destroy != true` in `workload-azure.yaml`~~ **Done — PR #24** → [Issue #22](https://github.com/nobhri/azure-dbx-mock-platform/issues/22)
+7. **Always destroy workload-dbx before workload-azure** — out-of-order destruction orphans UC account-scope objects; recovery requires manual deletion in Databricks Account Console → [Issue #26](https://github.com/nobhri/azure-dbx-mock-platform/issues/26)
 
 ### Fix Soon (medium effort)
 
