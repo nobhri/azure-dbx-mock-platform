@@ -53,7 +53,7 @@ azure-dbx-mock-platform/
         └── providers.tf
 ```
 
-**Observation:** `terraform.tfstate` exists in the repo root, indicating a local Terraform run was executed outside the `infra/` layer. This file is correctly excluded by `.gitignore` but suggests manual execution occurred outside the intended CI/CD path.
+**Observation:** `terraform.tfstate` exists in the repo root, indicating a local Terraform run was executed outside the `infra/` layer. This file is correctly excluded by `.gitignore` but suggests manual execution occurred outside the intended CI/CD path. → [Issue #12](https://github.com/nobhri/azure-dbx-mock-platform/issues/12)
 
 ---
 
@@ -111,21 +111,20 @@ azure-dbx-mock-platform/
 
 **Status: Issues Found**
 
-**Issue 1 (HIGH): Hardcoded metastore UUID**
+**Issue 1 (HIGH): Hardcoded metastore UUID — RESOLVED (PR #3)**
 
 ```hcl
-# main.tf:43
+# main.tf:43 — original
 storage_root = "abfss://${var.uc_root_container}@${var.storage_account_name}.dfs.core.windows.net/30ebd5eb-ba32-4617-b715-1bbad2ad51e0"
-# TODO: parameterize hardcoded metastore ID.
 ```
 
-The UUID `30ebd5eb-ba32-4617-b715-1bbad2ad51e0` is environment-specific. Any redeployment to a different subscription will silently produce a wrong storage path. The `TODO` acknowledges this.
+The UUID was environment-specific. Any redeployment to a different subscription would silently produce a wrong storage path.
 
-**Fix:** Add `variable "metastore_id" {}` and replace the hardcoded UUID.
+**Resolution:** `variable "metastore_id" {}` added to `variables.tf` and `main.tf` updated to reference `var.metastore_id`. Secret `METASTORE_ID` added to the GitHub Actions workflow. Fixed in PR #3 (`feat/metastore-id-variable`).
 
 ---
 
-**Issue 2 (LOW): Commented-out catalog/schema resources**
+**Issue 2 (LOW): Commented-out catalog/schema resources** → [Issue #9](https://github.com/nobhri/azure-dbx-mock-platform/issues/9)
 
 ```hcl
 # main.tf:96–147 — catalog, schema, grant resources all commented out
@@ -147,11 +146,27 @@ Acceptable for metastore (which is hard to recreate), but worth noting: Terrafor
 
 ### infra/workload-dbx/variables.tf
 
-**Status: Issues Found**
+**Status: Issues Found — Confirmed by CI log (2026-03-02)**
 
-`catalog_name` and `schema_names` are commented out (lines 53–63) but are referenced in `Taskfile.yml` and passed as `-var` flags in `workload-dbx.yaml`. Without variable declarations, there is no type checking or default validation.
+Two categories of variable mismatch exist between `variables.tf` and the `-var` flags in `workload-dbx.yaml`: → [Issue #6](https://github.com/nobhri/azure-dbx-mock-platform/issues/6)
 
-**Fix:** Either uncomment the variable declarations with appropriate defaults or remove the `-var` references from the workflow.
+**Undeclared variables passed from CI (Terraform errors 1–2):**
+
+`catalog_name` and `schema_names` are commented out (lines 58–68) but are still passed as `-var` flags in the Plan, Apply, and Destroy steps. Terraform rejects them with `Value for undeclared variable`.
+
+**Declared variables never passed from CI (Terraform errors 3–5):**
+
+Three variables are declared in `variables.tf` with no default and no corresponding `-var` flag in any workflow step:
+
+| Variable | Declared at | Available source |
+|----------|-------------|-----------------|
+| `subscription_id` | `variables.tf:2` | `${{ secrets.AZURE_SUBSCRIPTION_ID }}` |
+| `azure_tenant_id` | `variables.tf:7` | `${{ secrets.AZURE_TENANT_ID }}` |
+| `resource_group_name` | `variables.tf:17` | `rg-mock-data` (matches `workload-azure` default) |
+
+**Separate issue — empty secret:** The CI log shows `-var="databricks_account_id="` — the `DATABRICKS_ACCOUNT_ID` GitHub Secret resolves to an empty string. This is a repo configuration issue, not a code fix. → [Issue #8](https://github.com/nobhri/azure-dbx-mock-platform/issues/8)
+
+**Fix:** Remove the two undeclared `-var` flags from all workflow steps. Add the three missing `-var` flags using existing secrets and a new `RG_NAME` env var.
 
 ### infra/workload-dbx/providers.tf
 
@@ -185,7 +200,7 @@ Acceptable for metastore (which is hard to recreate), but worth noting: Terrafor
 
 **Status: Issues Found**
 
-**Issue (HIGH): Hardcoded storage account name**
+**Issue (HIGH): Hardcoded storage account name** → [Issue #7](https://github.com/nobhri/azure-dbx-mock-platform/issues/7)
 
 ```yaml
 # workload-azure.yaml:29
@@ -198,23 +213,25 @@ Azure Storage Account names must be globally unique and lowercase. This value is
 
 ### workload-dbx.yaml
 
-**Status: Issues Found**
+**Status: Issues Found — CI run 22560879018 failed (2026-03-02)**
 
-**Issue (CRITICAL): Destroy step missing required variables**
+**Issue (CRITICAL): Variable mismatch between workflow and variables.tf — 5 Terraform errors** → [Issue #6](https://github.com/nobhri/azure-dbx-mock-platform/issues/6)
 
-The `Terraform Apply` step passes:
-```yaml
--var="subscription_id=..."
--var="azure_tenant_id=..."
--var="resource_group_name=..."
--var="workspace_name=..."
--var="access_connector_id=..."
-# ... and others
+The CI apply step produced the following errors simultaneously:
+
+```
+Error: Value for undeclared variable — "catalog_name"
+Error: Value for undeclared variable — "schema_names"
+Error: No value for required variable — "subscription_id"   (variables.tf:2)
+Error: No value for required variable — "azure_tenant_id"   (variables.tf:7)
+Error: No value for required variable — "resource_group_name" (variables.tf:17)
 ```
 
-The `Terraform Destroy` step does **not** include these variables. Terraform will error with `variable not set` during destroy runs.
+Errors 1–2 are caused by `-var` flags for commented-out variables. Errors 3–5 are caused by required variables that have no corresponding `-var` flag in any workflow step (Plan, Apply, or Destroy). See `workload-dbx/variables.tf` section above for the full breakdown.
 
-**Fix:** Mirror all `-var` flags from the apply step into the destroy step, or extract them to a shared `env` block.
+**Partially fixed — PR #5:** `workspace_name` was absent from the `Terraform Destroy` step only; added in PR #5 (`fix/destroy-var-parity`).
+
+**Remaining fix:** Remove `-var="catalog_name=..."` and `-var='schema_names=[...]'` from all three steps. Add `-var="subscription_id=..."`, `-var="azure_tenant_id=..."`, and `-var="resource_group_name=..."` to all three steps.
 
 ---
 
@@ -235,8 +252,8 @@ The `Terraform Destroy` step does **not** include these variables. Terraform wil
 
 | Risk | Location | Severity | Notes |
 |------|----------|----------|-------|
-| Hardcoded metastore UUID | `workload-dbx/main.tf:43` | HIGH | Environment-specific; breaks portability |
-| Hardcoded ADLS name | `workload-azure.yaml:29` | HIGH | Must be unique globally; acknowledged with HACKME |
+| ~~Hardcoded metastore UUID~~ | `workload-dbx/main.tf:43` | HIGH | **Fixed — PR #3** |
+| Hardcoded ADLS name | `workload-azure.yaml:29` | HIGH | Must be unique globally; acknowledged with HACKME — [Issue #7](https://github.com/nobhri/azure-dbx-mock-platform/issues/7) |
 | Public network access on tfstate Storage Account | `bootstrap/main.tf` | LOW | Required for GitHub Actions runners; documented trade-off |
 | No IP allowlist on Databricks workspace | `workload-azure/main.tf` | LOW | Documented in README as known production gap |
 
@@ -254,7 +271,7 @@ No credentials, tokens, or secrets were found anywhere in the codebase.
 
 **Concerns:**
 
-1. **FIXME on line 50:** `SCHEMAS_JSON` backslash escaping noted as a potential shell interpolation issue
+1. **FIXME on line 50:** `SCHEMAS_JSON` backslash escaping noted as a potential shell interpolation issue → [Issue #10](https://github.com/nobhri/azure-dbx-mock-platform/issues/10)
 2. **Commented-out tasks** add noise and make it harder to understand the current supported surface
 3. **Inline bash one-liners** are difficult to test and maintain; complex logic would be clearer in helper scripts
 4. **Multiple dotenv sources** (`dotenv: ['.env', '.env.dbx']`) — load order and override precedence should be documented
@@ -263,16 +280,17 @@ No credentials, tokens, or secrets were found anywhere in the codebase.
 
 ## Issues by Severity
 
-| # | Severity | Issue | Location |
-|---|----------|-------|----------|
-| 1 | CRITICAL | Destroy step missing required `-var` flags | `workload-dbx.yaml` destroy step |
-| 2 | HIGH | Hardcoded environment-specific metastore UUID | `workload-dbx/main.tf:43` |
-| 3 | HIGH | Hardcoded ADLS storage account name | `workload-azure.yaml:29` |
-| 4 | MEDIUM | `catalog_name` / `schema_names` variables referenced but not declared | `workload-dbx/variables.tf` |
-| 5 | LOW | Commented-out catalog/schema resources lack explanation | `workload-dbx/main.tf:96–147` |
-| 6 | LOW | `SCHEMAS_JSON` escaping issue | `Taskfile.yml:50` |
-| 7 | LOW | No `tflint` or `checkov` runs in CI/CD (tasks exist but not invoked) | `Taskfile.yml`, all workflows |
-| 8 | LOW | `terraform.tfstate` in repo root suggests manual local execution | Repo root |
+| # | Severity | Issue | Location | GitHub Issue | Status |
+|---|----------|-------|----------|--------------|--------|
+| 1 | CRITICAL | 5 variable mismatches between workflow `-var` flags and `variables.tf`: 2 undeclared vars passed, 3 required vars never passed | `workload-dbx.yaml` all steps + `workload-dbx/variables.tf` | [#6](https://github.com/nobhri/azure-dbx-mock-platform/issues/6) | Open |
+| 1a | — | `workspace_name` absent from Destroy step only | `workload-dbx.yaml` destroy step | — | **Fixed — PR #5** |
+| 2 | HIGH | Hardcoded environment-specific metastore UUID | `workload-dbx/main.tf:43` | — | **Fixed — PR #3** |
+| 3 | HIGH | Hardcoded ADLS storage account name | `workload-azure.yaml:29` | [#7](https://github.com/nobhri/azure-dbx-mock-platform/issues/7) | Open |
+| 4 | MEDIUM | `DATABRICKS_ACCOUNT_ID` GitHub Secret is empty — resolves to empty string in CI | GitHub repo secrets | [#8](https://github.com/nobhri/azure-dbx-mock-platform/issues/8) | Open (config, not code) |
+| 5 | LOW | Commented-out catalog/schema resources lack explanation | `workload-dbx/main.tf:96–147` | [#9](https://github.com/nobhri/azure-dbx-mock-platform/issues/9) | Open |
+| 6 | LOW | `SCHEMAS_JSON` escaping issue | `Taskfile.yml:50` | [#10](https://github.com/nobhri/azure-dbx-mock-platform/issues/10) | Open |
+| 7 | LOW | No `tflint` or `checkov` runs in CI/CD (tasks exist but not invoked) | `Taskfile.yml`, all workflows | [#11](https://github.com/nobhri/azure-dbx-mock-platform/issues/11) | Open |
+| 8 | LOW | `terraform.tfstate` in repo root suggests manual local execution | Repo root | [#12](https://github.com/nobhri/azure-dbx-mock-platform/issues/12) | Open |
 
 ---
 
@@ -294,15 +312,15 @@ No credentials, tokens, or secrets were found anywhere in the codebase.
 
 ### Fix Now (low effort, high impact)
 
-1. **Add `variable "metastore_id" {}`** to `workload-dbx/variables.tf` and replace the hardcoded UUID in `main.tf:43`
-2. **Mirror `-var` flags** from the apply step to the destroy step in `workload-dbx.yaml`
-3. **Move `ADLS_NAME`** to a GitHub Secret and reference it as `${{ secrets.ADLS_STORAGE_NAME }}` in `workload-azure.yaml`
-4. **Uncomment or remove** `catalog_name` / `schema_names` variable declarations in `workload-dbx/variables.tf`
+1. ~~**Add `variable "metastore_id" {}`** to `workload-dbx/variables.tf` and replace the hardcoded UUID in `main.tf:43`~~ **Done — PR #3**
+2. **Fix variable mismatch** in `workload-dbx.yaml`: remove `-var="catalog_name=..."` and `-var='schema_names=[...]'` from all 3 steps; add `-var="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"`, `-var="azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}"`, `-var="resource_group_name=rg-mock-data"` to all 3 steps. *(PR #5 addressed `workspace_name` in destroy only — the broader mismatch remains.)* → [Issue #6](https://github.com/nobhri/azure-dbx-mock-platform/issues/6)
+3. **Set `DATABRICKS_ACCOUNT_ID`** in GitHub repo Secrets — the secret currently resolves to an empty string in CI. → [Issue #8](https://github.com/nobhri/azure-dbx-mock-platform/issues/8)
+4. **Move `ADLS_NAME`** to a GitHub Secret and reference it as `${{ secrets.ADLS_STORAGE_NAME }}` in `workload-azure.yaml` → [Issue #7](https://github.com/nobhri/azure-dbx-mock-platform/issues/7)
 
 ### Fix Soon (medium effort)
 
-5. **Add a brief inline comment** above the commented-out catalog/schema block in `workload-dbx/main.tf` explaining the Jinja2 handoff (ADR-001)
-6. **Add `tflint`** as a step in `workload-azure.yaml` and `workload-dbx.yaml` — the Taskfile task already exists
+5. **Add a brief inline comment** above the commented-out catalog/schema block in `workload-dbx/main.tf` explaining the Jinja2 handoff (ADR-001) → [Issue #9](https://github.com/nobhri/azure-dbx-mock-platform/issues/9)
+6. **Add `tflint`** as a step in `workload-azure.yaml` and `workload-dbx.yaml` — the Taskfile task already exists → [Issue #11](https://github.com/nobhri/azure-dbx-mock-platform/issues/11)
 7. **Extract complex bash** from Taskfile into versioned helper scripts under `scripts/`
 
 ### Future Work (already documented in README)
