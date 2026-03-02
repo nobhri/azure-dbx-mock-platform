@@ -24,8 +24,7 @@ env:
   TFSTATE_SA_NAME: st${{ secrets.TFSTATE_SA_UNIQ }}tfstate
   TFSTATE_CONTAINER: workload-tfstate
   TFSTATE_KEY: dbx.tfstate
-  CATALOG_NAME: mock
-  SCHEMAS: staging,serving
+  RG_NAME: rg-mock-data
 
 jobs:
   tf:
@@ -87,44 +86,47 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           terraform -chdir=infra/workload-dbx plan -input=false -no-color \
+            -var="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
+            -var="azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
+            -var="resource_group_name=$RG_NAME" \
             -var="databricks_account_id=${{ secrets.DATABRICKS_ACCOUNT_ID }}" \
             -var="metastore_id=${{ secrets.METASTORE_ID }}" \
             -var="azure_workspace_resource_id=${{ steps.azout.outputs.WORKSPACE_RESOURCE_ID }}" \
             -var="workspace_name=${{ steps.azout.outputs.WORKSPACE_NAME }}" \
             -var="access_connector_id=${{ steps.azout.outputs.ACCESS_CONNECTOR_ID }}" \
             -var="storage_account_name=${{ steps.azout.outputs.STORAGE_ACCOUNT_NAME }}" \
-            -var="uc_root_container=${{ steps.azout.outputs.UC_ROOT_CONTAINER }}" \
-            -var="catalog_name=$CATALOG_NAME" \
-            -var='schema_names=["staging","serving"]'
+            -var="uc_root_container=${{ steps.azout.outputs.UC_ROOT_CONTAINER }}"
 
       - name: Terraform Apply (main)
         if: github.ref == 'refs/heads/main' && inputs.destroy != 'true'
         env: { TF_IN_AUTOMATION: "1" }
         run: |
           terraform -chdir=infra/workload-dbx apply -auto-approve -input=false -lock-timeout=10m -no-color \
+            -var="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
+            -var="azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
+            -var="resource_group_name=$RG_NAME" \
             -var="databricks_account_id=${{ secrets.DATABRICKS_ACCOUNT_ID }}" \
             -var="metastore_id=${{ secrets.METASTORE_ID }}" \
             -var="azure_workspace_resource_id=${{ steps.azout.outputs.WORKSPACE_RESOURCE_ID }}" \
             -var="workspace_name=${{ steps.azout.outputs.WORKSPACE_NAME }}" \
             -var="access_connector_id=${{ steps.azout.outputs.ACCESS_CONNECTOR_ID }}" \
             -var="storage_account_name=${{ steps.azout.outputs.STORAGE_ACCOUNT_NAME }}" \
-            -var="uc_root_container=${{ steps.azout.outputs.UC_ROOT_CONTAINER }}" \
-            -var="catalog_name=$CATALOG_NAME" \
-            -var='schema_names=["staging","serving"]'
+            -var="uc_root_container=${{ steps.azout.outputs.UC_ROOT_CONTAINER }}"
 
       - name: Terraform Destroy (manual)
         if: inputs.destroy == 'true'
         run: |
           terraform -chdir=infra/workload-dbx destroy -auto-approve -input=false -lock-timeout=10m -no-color \
+            -var="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
+            -var="azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
+            -var="resource_group_name=$RG_NAME" \
             -var="databricks_account_id=${{ secrets.DATABRICKS_ACCOUNT_ID }}" \
             -var="metastore_id=${{ secrets.METASTORE_ID }}" \
             -var="azure_workspace_resource_id=${{ steps.azout.outputs.WORKSPACE_RESOURCE_ID }}" \
             -var="workspace_name=${{ steps.azout.outputs.WORKSPACE_NAME }}" \
             -var="access_connector_id=${{ steps.azout.outputs.ACCESS_CONNECTOR_ID }}" \
             -var="storage_account_name=${{ steps.azout.outputs.STORAGE_ACCOUNT_NAME }}" \
-            -var="uc_root_container=${{ steps.azout.outputs.UC_ROOT_CONTAINER }}" \
-            -var="catalog_name=$CATALOG_NAME" \
-            -var='schema_names=["staging","serving"]'
+            -var="uc_root_container=${{ steps.azout.outputs.UC_ROOT_CONTAINER }}"
 
       - name: Break lease if cancelled
         if: cancelled()
