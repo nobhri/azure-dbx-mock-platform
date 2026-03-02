@@ -37,8 +37,7 @@ locals {
 resource "databricks_metastore" "this" {
   provider = databricks.account
 
-  # name         = "mvp-metastore"
-  name = var.catalog_name
+  name = "mvp-metastore"
   # storage_root = local.storage_root_abfss
   storage_root = "abfss://${var.uc_root_container}@${var.storage_account_name}.dfs.core.windows.net/${var.metastore_id}"
   lifecycle {
