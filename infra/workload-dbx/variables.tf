@@ -50,6 +50,11 @@ variable "uc_root_container" {
   default     = "uc-root"
 }
 
+variable "metastore_id" {
+  description = "UUID of the existing Unity Catalog metastore (used as the storage_root path suffix)"
+  type        = string
+}
+
 # variable "catalog_name" {
 #   description = "Name of the catalog to create under the metastore"
 #   type        = string

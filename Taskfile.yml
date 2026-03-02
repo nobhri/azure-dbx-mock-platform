@@ -46,6 +46,7 @@ vars:
 
   # === Workload variables (DBX) ===
   DATABRICKS_ACCOUNT_ID: "{{.DATABRICKS_ACCOUNT_ID | default ``}}"
+  METASTORE_ID: "{{.METASTORE_ID | default ``}}"
   CATALOG_NAME: "{{.CATALOG_NAME | default `mock`}}"
   SCHEMAS_JSON: "{{.SCHEMAS_JSON | default `[\"staging\",\"serving\"]`}}" # FIXME: backslash might have an issue
 
@@ -484,6 +485,7 @@ tasks:
           -var="subscription_id={{.AZURE_SUBSCRIPTION_ID}}" \
           -var="azure_tenant_id={{.AZURE_TENANT_ID}}" \
           -var="databricks_account_id={{.DATABRICKS_ACCOUNT_ID}}" \
+          -var="metastore_id={{.METASTORE_ID}}" \
           -var="azure_workspace_resource_id=${WORKSPACE_RESOURCE_ID}" \
           -var="workspace_name=${WORKSPACE_NAME}" \
           -var="resource_group_name={{.RG_NAME}}" \
@@ -510,6 +512,7 @@ tasks:
           -var="subscription_id={{.AZURE_SUBSCRIPTION_ID}}" \
           -var="azure_tenant_id={{.AZURE_TENANT_ID}}" \
           -var="databricks_account_id={{.DATABRICKS_ACCOUNT_ID}}" \
+          -var="metastore_id={{.METASTORE_ID}}" \
           -var="azure_workspace_resource_id=${WORKSPACE_RESOURCE_ID}" \
           -var="workspace_name=${WORKSPACE_NAME}" \
           -var="resource_group_name={{.RG_NAME}}" \
@@ -535,6 +538,7 @@ tasks:
           -var="subscription_id={{.AZURE_SUBSCRIPTION_ID}}" \
           -var="azure_tenant_id={{.AZURE_TENANT_ID}}" \
           -var="databricks_account_id={{.DATABRICKS_ACCOUNT_ID}}" \
+          -var="metastore_id={{.METASTORE_ID}}" \
           -var="azure_workspace_resource_id=${WORKSPACE_RESOURCE_ID}" \
           -var="workspace_name=${WORKSPACE_NAME}" \
           -var="resource_group_name={{.RG_NAME}}" \
@@ -562,6 +566,7 @@ tasks:
           -var=subscription_id={{.AZURE_SUBSCRIPTION_ID}}
           -var=azure_tenant_id={{.AZURE_TENANT_ID}}
           -var=databricks_account_id={{.DATABRICKS_ACCOUNT_ID}}
+          -var=metastore_id={{.METASTORE_ID}}
           -var=azure_workspace_resource_id=${WORKSPACE_RESOURCE_ID}
           -var=workspace_name=${WORKSPACE_NAME}
           -var=resource_group_name={{.RG_NAME}}
