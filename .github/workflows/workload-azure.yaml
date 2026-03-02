@@ -79,7 +79,7 @@ jobs:
             -var="workspace_sku=$WORKSPACE_SKU"
 
       - name: Terraform Apply (main)
-        if: github.ref == 'refs/heads/main' && inputs.destroy != true
+        if: github.ref == 'refs/heads/main' && inputs.destroy != 'true'
         env: { TF_IN_AUTOMATION: "1" }
         run: |
           terraform -chdir=infra/workload-azure apply -auto-approve -input=false -lock-timeout=10m -no-color \
@@ -90,7 +90,7 @@ jobs:
             -var="workspace_sku=$WORKSPACE_SKU"
 
       - name: Terraform Destroy (manual)
-        if: inputs.destroy
+        if: inputs.destroy == 'true'
         run: |
           terraform -chdir=infra/workload-azure destroy -auto-approve -input=false -lock-timeout=10m -no-color \
             -var="prefix=$PREFIX" \
@@ -110,7 +110,7 @@ jobs:
 
       # Expose outputs for the dbx workflow to reuse if needed
       - name: Read outputs
-        if: always() && inputs.destroy != true
+        if: always() && inputs.destroy != 'true'
         id: tfout
         run: |
           echo "WORKSPACE_RESOURCE_ID=$(terraform -chdir=infra/workload-azure output -raw workspace_resource_id)" >> $GITHUB_OUTPUT
