@@ -40,8 +40,7 @@ resource "databricks_metastore" "this" {
   # name         = "mvp-metastore"
   name = var.catalog_name
   # storage_root = local.storage_root_abfss
-  storage_root = "abfss://${var.uc_root_container}@${var.storage_account_name}.dfs.core.windows.net/30ebd5eb-ba32-4617-b715-1bbad2ad51e0"
-  # TODO: parameterize hardcoded metastore ID.
+  storage_root = "abfss://${var.uc_root_container}@${var.storage_account_name}.dfs.core.windows.net/${var.metastore_id}"
   lifecycle {
     ignore_changes  = [storage_root, owner]
     # prevent_destroy = true # enable if you want to keep this metastore permananent.
