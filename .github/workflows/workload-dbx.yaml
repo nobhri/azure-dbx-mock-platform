@@ -119,6 +119,7 @@ jobs:
             -var="databricks_account_id=${{ secrets.DATABRICKS_ACCOUNT_ID }}" \
             -var="metastore_id=${{ secrets.METASTORE_ID }}" \
             -var="azure_workspace_resource_id=${{ steps.azout.outputs.WORKSPACE_RESOURCE_ID }}" \
+            -var="workspace_name=${{ steps.azout.outputs.WORKSPACE_NAME }}" \
             -var="access_connector_id=${{ steps.azout.outputs.ACCESS_CONNECTOR_ID }}" \
             -var="storage_account_name=${{ steps.azout.outputs.STORAGE_ACCOUNT_NAME }}" \
             -var="uc_root_container=${{ steps.azout.outputs.UC_ROOT_CONTAINER }}" \
