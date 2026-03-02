@@ -14,6 +14,8 @@ Azure, Terraform, Databricks, Asset Bundles, Unity Catalog, Jinja2, GitHub Actio
 
 ## Git
 - Branch naming: feature/, fix/, docs/
+- Always create a new branch before making any changes
+- Never commit directly to main
 - Always create PR to main, never push to main directly
 
 ## Boundaries
