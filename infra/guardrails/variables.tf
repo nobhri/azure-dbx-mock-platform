@@ -11,7 +11,7 @@ variable "budget_start" {
 
 variable "budget_end" {
   type    = string
-  default = "2026-01-01T00:00:00Z"
+  default = "2027-01-01T00:00:00Z"
 }
 
 variable "alert_emails" {
