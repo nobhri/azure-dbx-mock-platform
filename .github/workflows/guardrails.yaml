@@ -21,7 +21,7 @@ env:
   SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   BUDGET_AMOUNT: "2000"                 # override if you like
   BUDGET_START: "2025-01-01T00:00:00Z"
-  BUDGET_END:   "2026-01-01T00:00:00Z"
+  BUDGET_END:   "2027-01-01T00:00:00Z"
   ALERT_EMAIL:  ${{ secrets.ALERT_EMAIL }}
 
 jobs:
@@ -49,12 +49,15 @@ jobs:
             -backend-config="container_name=${TFSTATE_CONTAINER}" \
             -backend-config="key=${TFSTATE_KEY}"
 
-      - name: Set budget dates to current month
-        run: echo "BUDGET_START=$(date -u +'%Y-%m-01T00:00:00Z')" >> $GITHUB_ENV
+      - name: Set budget dates
+        run: |
+          echo "BUDGET_START=$(date -u +'%Y-%m-01T00:00:00Z')" >> $GITHUB_ENV
+          echo "BUDGET_END=$(($(date -u +'%Y') + 1))-01-01T00:00:00Z" >> $GITHUB_ENV
 
       - name: Terraform apply (budget + alerts)
         run: |
           terraform -chdir=infra/guardrails apply -auto-approve -input=false -lock-timeout=10m \
             -var="budget_amount=${BUDGET_AMOUNT}" \
             -var="budget_start=${{ env.BUDGET_START }}" \
+            -var="budget_end=${{ env.BUDGET_END }}" \
             -var='alert_emails=["'${{ env.ALERT_EMAIL }}'"]'
