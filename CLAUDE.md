@@ -20,9 +20,13 @@ Azure, Terraform, Databricks, Asset Bundles, Unity Catalog, Jinja2, GitHub Actio
 - Use git worktrees (`.claude/worktrees/<branch-name>`) for parallel sessions (e.g. tmux with multiple Claude Code terminals)
 - Each worktree gets its own branch; all worktrees target main via PR
 
-## Boundaries
-- NEVER approve or merge pull requests
-- NEVER run `gh pr review` or `gh pr merge`
+## Autonomy Level
+- You may edit, commit, push, and create PRs without asking
+- You may view GitHub Actions run status and logs
+- You must STOP and wait for human review at PR creation
+- Never merge, approve, or delete anything
+- Never run `gh workflow run` or `gh api` to trigger workflows
+- Never run `gh pr merge` or `gh pr review --approve`
 - Your job ends at `gh pr create`
 
 ## Forbidden Commands
