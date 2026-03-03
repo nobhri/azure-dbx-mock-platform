@@ -17,6 +17,8 @@ Azure, Terraform, Databricks, Asset Bundles, Unity Catalog, Jinja2, GitHub Actio
 - Always create a new branch before making any changes
 - Never commit directly to main
 - Always create PR to main, never push to main directly
+- Use git worktrees (`.claude/worktrees/<branch-name>`) for parallel sessions (e.g. tmux with multiple Claude Code terminals)
+- Each worktree gets its own branch; all worktrees target main via PR
 
 ## Boundaries
 - NEVER approve or merge pull requests
