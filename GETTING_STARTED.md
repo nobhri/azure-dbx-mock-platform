@@ -163,6 +163,7 @@ METASTORE_ID=<your Unity Catalog metastore UUID>
 - **Storage Account names are hardcoded in two places — replace before deploying:**
   - Terraform state backend Storage Account
   - Unity Catalog root storage Storage Account
+- **Do not run `terraform` from the repo root** — always use `-chdir=infra/<module>` (or let CI do it). Running terraform at the root creates a local `terraform.tfstate` in the repo root that is out of sync with the remote backend. The file is excluded by `.gitignore` but indicates an accidental manual run outside the intended module directory.
 
 ---
 
