@@ -40,6 +40,10 @@ resource "databricks_metastore" "this" {
   name = "mvp-metastore"
   # storage_root = local.storage_root_abfss
   storage_root = "abfss://${var.uc_root_container}@${var.storage_account_name}.dfs.core.windows.net/${var.metastore_id}"
+  # force_destroy allows Terraform destroy to cascade-delete all UC objects
+  # (catalogs, schemas, storage credentials) even when not managed by Terraform
+  # (e.g. catalog/schema created by Jinja2 notebook — see ADR-001).
+  force_destroy = true
   lifecycle {
     ignore_changes  = [storage_root, owner]
     # prevent_destroy = true # enable if you want to keep this metastore permananent.
