@@ -89,7 +89,10 @@ resource "databricks_external_location" "uc_root" {
   depends_on = [databricks_metastore_assignment.this]
 }
 
-# catalog and schema are going to be created with DDL SQL
+# Catalog and schema management is intentionally handled outside Terraform.
+# See ADR-001: Jinja2 + Python Notebook manages catalog/schema to avoid
+# Terraform lifecycle conflicts with Unity Catalog bootstrap ordering.
+# The resources below were prototyped but deferred to the notebook layer.
 
 # # Catalog under the attached metastore
 # resource "databricks_catalog" "catalog" {
