@@ -308,9 +308,10 @@ In a multi-Storage-Account setup, NCC configuration must be repeated for each ac
 
 - Terraform `destroy` for managed catalog resources fails due to dependency ordering — workaround is documented, manual cleanup required in some cases
 - `go-task` runner abstraction became complex; CI/CD integration needs simplification
-- **Storage Account names are currently hardcoded in two places — replace with your own values before deploying:**
-  - **Terraform state backend**: Storage Account used to store Terraform state files
-  - **Unity Catalog storage**: Storage Account used as the root storage for Unity Catalog (Metastore)
+- **Destroy order matters:** Always destroy `workload-dbx` before `workload-azure`. Destroying Azure first leaves Unity Catalog account-scope objects (`uc-mi-credential`, `uc-root-location`) orphaned — they must be deleted manually before re-applying. See [code-review-2026-03-03.md](docs/code-review-2026-03-03.md) for recovery steps.
+- **Deploying this yourself:** Two GitHub repository secrets must be set before CI will succeed:
+  - `ADLS_STORAGE_NAME` — name of the Storage Account used as Unity Catalog root storage
+  - `TFSTATE_SA_UNIQ` — unique suffix of the Terraform state Storage Account name (`st<UNIQ>tfstate`)
 
 -----
 
