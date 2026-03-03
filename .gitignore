@@ -59,5 +59,8 @@ venv/
 .DS_Store
 Thumbs.db
 
+# --- tmux ---
+tmux-*.log
+
 # --- Claude Code ---
 .claude/
