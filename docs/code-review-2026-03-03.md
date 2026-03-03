@@ -3,91 +3,165 @@
 **Scope:** Full codebase re-review — all Terraform, GitHub Actions, Taskfile, docs, and .gitignore (~2,400 lines)
 **Reviewer:** Claude Code (claude-sonnet-4-6)
 **Builds on:** [code-review-2026-03-02.md](./code-review-2026-03-02.md)
-**Status:** MVP phase
+**Status:** MVP phase — second update this date (post-PR-batch)
 
 ---
 
-## Changes Since Previous Review
+## Changes Since Previous Review (PR #29 baseline)
+
+Many issues were closed in a batch of PRs (#30–#38) after the initial 2026-03-03 code review was written. This update reflects the current state of the repository and three new findings from GitHub Actions run analysis.
 
 | Item | Change |
 |------|--------|
-| Issue #21 — SP lacks User Access Administrator | **Resolved** — UAA granted at subscription scope (2026-03-02) |
-| Issue #22 — Read outputs ANSI corruption | **Fixed** — PR #24 merged |
-| Issue #26 — UC objects orphaned on wrong destroy order | **Opened** — pending manual recovery and code safeguard |
-| Issue #28 — `inputs.destroy` comparison style inconsistency | **Opened** — new finding from this review |
+| Issue #7 — Hardcoded ADLS name | **Closed** — PR #33 moved to `secrets.ADLS_STORAGE_NAME`; **but secret not populated → regression** |
+| Issue #9 — No comment on commented-out block | **Closed** — PR #34 added inline comment |
+| Issue #10 — SCHEMAS_JSON escaping | **Closed** — PR #32 fixed escaping |
+| Issue #12 — terraform.tfstate in repo root | **Closed** — PR #35 added docs/warning |
+| Issue #19 — SP missing CREATE EXTERNAL LOCATION | **Closed** — grant re-applied; documented as per-cycle manual step |
+| Issue #26 — UC objects orphaned on wrong destroy order | **Closed** — PR #31 added documentation; orphan persists in live environment, must be cleared manually |
+| Issue #28 — `inputs.destroy` comparison style inconsistency | **Closed** — PR #30 standardised to explicit string |
 
 ---
 
-## New Finding
+## New Findings
 
-### Issue #28 — `inputs.destroy` comparison style inconsistency (MEDIUM)
+### Finding 1 — `ADLS_STORAGE_NAME` secret not set (HIGH)
 
-`workload-azure.yaml` compares the `inputs.destroy` boolean input using unquoted boolean syntax; `workload-dbx.yaml` uses the explicit string form. GitHub Actions `workflow_dispatch` boolean inputs are passed as the strings `'true'`/`'false'` at runtime, not as actual booleans. Both forms work today via implicit type coercion, but the inconsistency creates a maintenance hazard and obscures intent.
+**Runs:** [22606582325](https://github.com/nobhri/azure-dbx-mock-platform/actions/runs/22606582325), [22606636664](https://github.com/nobhri/azure-dbx-mock-platform/actions/runs/22606636664)
+**Triggered:** workflow_dispatch on main, 2026-03-03T03:13–03:15Z
 
-| File | Line | Expression | Style |
-|------|------|------------|-------|
-| `workload-azure.yaml` | 82 | `inputs.destroy != true` | boolean (implicit coercion) |
-| `workload-azure.yaml` | 93 | `inputs.destroy` | truthy (implicit) |
-| `workload-dbx.yaml` | 101 | `inputs.destroy != 'true'` | string (explicit) ✓ |
-| `workload-dbx.yaml` | 117 | `inputs.destroy == 'true'` | string (explicit) ✓ |
+PR #33 replaced the hardcoded `ADLS_NAME: stdataabcdedata` with `${{ secrets.ADLS_STORAGE_NAME }}`. The secret was never added to GitHub repository secrets, so `ADLS_NAME` resolves to an empty string at runtime.
 
-**Fix:** Align `workload-azure.yaml` to the explicit string style used in `workload-dbx.yaml`:
-```yaml
-# Apply guard (line 82)
-if: github.ref == 'refs/heads/main' && inputs.destroy != 'true'
-
-# Destroy step (line 93)
-if: inputs.destroy == 'true'
+```
+Error: name ("") can only consist of lowercase letters and numbers,
+       and must be between 3 and 24 characters long
+  with azurerm_storage_account.data, on main.tf line 9
 ```
 
-→ [Issue #28](https://github.com/nobhri/azure-dbx-mock-platform/issues/28)
+Both post-PR-#33 workload-azure runs fail at `Terraform Apply (main)`. The fix for issue #7 is incomplete — the secret must be populated in GitHub → Settings → Secrets → Actions.
+
+**Fix:** Add secret `ADLS_STORAGE_NAME` = storage account name to GitHub repository secrets.
+
+→ Filed as new issue.
 
 ---
 
-## Issue Status Snapshot
+### Finding 2 — OIDC not configured for `pull_request` subject (MEDIUM)
+
+**Runs:** [22604751488](https://github.com/nobhri/azure-dbx-mock-platform/actions/runs/22604751488) (workload-azure), [22604750297](https://github.com/nobhri/azure-dbx-mock-platform/actions/runs/22604750297) (workload-dbx)
+**Triggered:** pull_request event on `worktree-feature/issue-11-tflint` branch
+
+```
+AADSTS700213: No matching federated identity record found for
+presented assertion subject 'repo:nobhri/azure-dbx-mock-platform:pull_request'
+```
+
+The Entra ID app registration's federated credentials only accept tokens for `refs/heads/main` (push) and `workflow_dispatch`. GitHub Actions OIDC tokens for `pull_request` events carry the subject `repo:<owner>/<repo>:pull_request`, which is not in the allowed list. As a result, **every PR that touches `infra/workload-azure/**` or `infra/workload-dbx/**` will fail Azure login and cannot run `terraform plan`**.
+
+This means PR-time plan preview is non-functional — a significant gap in the review workflow.
+
+**Fix options:**
+- Add a federated credential for subject `repo:nobhri/azure-dbx-mock-platform:pull_request` in Entra ID app registration (preferred — minimal blast radius)
+- Or scope to `ref:refs/pull/*` using a wildcard subject (check Entra ID support)
+
+→ Filed as new issue.
+
+---
+
+### Finding 3 — guardrails `BUDGET_END` expired (LOW)
+
+**Run:** [22581502011](https://github.com/nobhri/azure-dbx-mock-platform/actions/runs/22581502011)
+**Triggered:** workflow_dispatch, 2026-03-02T14:55Z
+
+```
+Error: creating Scoped Budget: unexpected status 400 (400 Bad Request)
+  End date should be greater than the start date.
+```
+
+`guardrails.yaml` hardcodes `BUDGET_END: "2026-01-01T00:00:00Z"`, which is now in the past. The dynamic override only rewrites `BUDGET_START` (current month), leaving `BUDGET_END` stale. Azure rejects budget creation when `end < start`.
+
+**Fix:** Update `BUDGET_END` in `guardrails.yaml` to a future date (e.g., `2027-01-01T00:00:00Z`) and consider making it dynamic like `BUDGET_START`.
+
+→ Filed as new issue.
+
+---
+
+## Ongoing Finding — workload-dbx orphaned credential (issue #26 not operationally resolved)
+
+**Run:** [22606426819](https://github.com/nobhri/azure-dbx-mock-platform/actions/runs/22606426819)
+**Triggered:** push to main (merge of PR #34), 2026-03-03T03:06Z
+
+```
+Error: cannot create storage credential:
+       Storage Credential 'uc-mi-credential' already exists
+```
+
+Issue #26 was closed as "documented" — PR #31 added recovery steps to docs. However, the orphaned `uc-mi-credential` was never actually deleted from the Databricks account, so `workload-dbx` continues to fail on every run. The environment is currently broken.
+
+**Required manual steps (before next workload-dbx apply):**
+1. Databricks Account Console → Unity Catalog → External Locations → delete `uc-root-location`
+2. Databricks Account Console → Unity Catalog → Storage Credentials → delete `uc-mi-credential`
+3. Re-run workload-dbx apply
+4. Re-grant `CREATE EXTERNAL LOCATION ON METASTORE TO '<SP_client_id>'`
+
+This is a live environment blocker. Consider reopening issue #26 to track operational recovery.
+
+---
+
+## Issue Status Snapshot (current)
 
 | Issue | Title | Severity | Status |
 |-------|-------|----------|--------|
-| [#7](https://github.com/nobhri/azure-dbx-mock-platform/issues/7) | Hardcoded ADLS name in workload-azure.yaml | HIGH | Open |
-| [#9](https://github.com/nobhri/azure-dbx-mock-platform/issues/9) | No inline comment on commented-out catalog/schema block | LOW | Open |
-| [#10](https://github.com/nobhri/azure-dbx-mock-platform/issues/10) | SCHEMAS_JSON backslash escaping in Taskfile | LOW | Open |
-| [#11](https://github.com/nobhri/azure-dbx-mock-platform/issues/11) | No tflint/checkov in CI | LOW | Open |
-| [#12](https://github.com/nobhri/azure-dbx-mock-platform/issues/12) | terraform.tfstate in repo root | LOW | Open |
-| [#15](https://github.com/nobhri/azure-dbx-mock-platform/issues/15) | DATABRICKS_ACCOUNT_ID secret empty | HIGH | Open (resolved operationally — secret populated; issue not yet closed) |
-| [#19](https://github.com/nobhri/azure-dbx-mock-platform/issues/19) | SP missing CREATE EXTERNAL LOCATION on UC metastore | HIGH | Open (resolved per cycle; must re-grant after each full destroy/recreate) |
-| [#26](https://github.com/nobhri/azure-dbx-mock-platform/issues/26) | UC objects orphaned when destroy order is wrong | HIGH | Open |
-| [#28](https://github.com/nobhri/azure-dbx-mock-platform/issues/28) | `inputs.destroy` comparison style inconsistency | MEDIUM | Open — new |
+| [#11](https://github.com/nobhri/azure-dbx-mock-platform/issues/11) | Add tflint to CI | LOW | **Open** — PR attempted but blocked by OIDC issue |
+| New | `ADLS_STORAGE_NAME` secret not set — workload-azure broken | HIGH | **Open** — filed today |
+| New | OIDC not configured for `pull_request` subject | MEDIUM | **Open** — filed today |
+| New | guardrails `BUDGET_END` expired | LOW | **Open** — filed today |
+
+**All other previously tracked issues are now closed.**
 
 ---
 
-## No Regression on Existing Findings
+## Regressions on Previously Resolved Items
 
-All files re-read in full. No regressions detected on previously resolved items:
+| Item | Status |
+|------|--------|
+| Issue #7 — ADLS hardcoded | ⚠️ **Regression** — moved to secret (PR #33) but secret unpopulated; apply fails |
+| Issue #9 — Commented block | ✅ Fixed (PR #34) |
+| Issue #10 — SCHEMAS_JSON | ✅ Fixed (PR #32) |
+| Issue #12 — tfstate in root | ✅ Fixed (PR #35 docs) |
+| Issue #19 — CREATE EXTERNAL LOCATION | ✅ Documented as per-cycle manual step |
+| Issue #26 — UC orphaned objects | ⚠️ **Not operationally resolved** — docs added but orphan not cleared |
+| Issue #28 — destroy comparison style | ✅ Fixed (PR #30) |
+| Issue #6 — variable mismatches | ✅ No regression |
+| Issue #21 — SP lacks UAA | ✅ No regression |
+| Issue #22 — ANSI output guard | ✅ No regression |
 
-- [#6](https://github.com/nobhri/azure-dbx-mock-platform/issues/6) — variable mismatches: **still fixed** (PR #14)
-- [#21](https://github.com/nobhri/azure-dbx-mock-platform/issues/21) — SP lacks UAA: **still resolved**
-- [#22](https://github.com/nobhri/azure-dbx-mock-platform/issues/22) — ANSI output guard: **still fixed** (PR #24) — `workload-azure.yaml:113` now reads `if: always() && inputs.destroy != true`
+---
+
+## Observations — No Issue Required
+
+- **workload-dbx `init -upgrade` flag**: `infra/workload-dbx` uses `terraform init -upgrade` (line 79 of workload-dbx.yaml). This forces provider re-download on every run. Consider removing `-upgrade` and only using it intentionally when bumping provider versions — it adds latency and introduces non-determinism.
+- **`storage_root` path includes `metastore_id` suffix**: `workload-dbx/main.tf` sets `storage_root = "abfss://uc-root@<sa>.dfs.core.windows.net/<metastore_id>"`. This appends the metastore ID as a path component, which is unconventional. Since `lifecycle { ignore_changes = [storage_root] }` is set, this won't cause drift, but it's worth noting for documentation clarity.
+- **`# HACKME` comment removed**: PR #33 removed the `# HACKME` comment with the hardcoded value — good housekeeping.
 
 ---
 
 ## Recommendations
 
-### Fix Now
+### Unblock now
 
-1. **Standardise `inputs.destroy` comparison** in `workload-azure.yaml` — one-line change each for Apply and Destroy steps → [Issue #28](https://github.com/nobhri/azure-dbx-mock-platform/issues/28)
-2. **Close issue #15** — `DATABRICKS_ACCOUNT_ID` was populated and SP was granted Account Admin; the issue remains open on GitHub despite being operationally resolved
-3. **Move `ADLS_NAME` to GitHub Secret** → [Issue #7](https://github.com/nobhri/azure-dbx-mock-platform/issues/7)
+1. **Populate `ADLS_STORAGE_NAME` secret** in GitHub → Settings → Secrets → Actions (unblocks all workload-azure runs)
+2. **Clear orphaned UC objects** — delete `uc-mi-credential` and `uc-root-location` in Databricks Account Console, then re-run workload-dbx apply and re-grant CREATE EXTERNAL LOCATION (unblocks all workload-dbx runs)
+3. **Update `BUDGET_END`** in `guardrails.yaml` to a future date (unblocks guardrails)
 
-### Fix Soon
+### Fix soon
 
-4. **Recover from issue #26** (manual steps in Databricks Account Console — delete `uc-mi-credential` and `uc-root-location`, re-run workload-dbx apply, re-apply CREATE EXTERNAL LOCATION grant)
-5. **Add destroy-order guard** to `workload-azure.yaml` destroy step — fail if workload-dbx tfstate is non-empty → [Issue #26](https://github.com/nobhri/azure-dbx-mock-platform/issues/26)
-6. **Add inline comment** to commented-out catalog/schema block explaining ADR-001 Jinja2 handoff → [Issue #9](https://github.com/nobhri/azure-dbx-mock-platform/issues/9)
+4. **Add OIDC federated credential for `pull_request` subject** in Entra ID app registration (enables PR-time `terraform plan` to run)
+5. **Address tflint OIDC blocker** before merging PR for issue #11 (the tflint PR itself is ready; the Azure login step must work for PR events first)
 
 ### Future
 
-7. **Add tflint/checkov** steps to CI → [Issue #11](https://github.com/nobhri/azure-dbx-mock-platform/issues/11)
-8. **Verify and fix SCHEMAS_JSON escaping** in Taskfile → [Issue #10](https://github.com/nobhri/azure-dbx-mock-platform/issues/10)
+6. **Remove `-upgrade` from `terraform init`** in workload-dbx.yaml — use it explicitly only when bumping providers
 
 ---
 
