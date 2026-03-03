@@ -48,7 +48,7 @@ vars:
   DATABRICKS_ACCOUNT_ID: "{{.DATABRICKS_ACCOUNT_ID | default ``}}"
   METASTORE_ID: "{{.METASTORE_ID | default ``}}"
   CATALOG_NAME: "{{.CATALOG_NAME | default `mock`}}"
-  SCHEMAS_JSON: "{{.SCHEMAS_JSON | default `[\"staging\",\"serving\"]`}}" # FIXME: backslash might have an issue
+  SCHEMAS_JSON: "{{.SCHEMAS_JSON | default `[\"staging\",\"serving\"]`}}"
 
   # === Directories ===
   AZ_DIR: "{{.AZ_DIR | default `infra/workload-azure`}}"
@@ -556,6 +556,8 @@ tasks:
       DATABRICKS_HOST: ""
       DATABRICKS_TOKEN: ""
       DATABRICKS_WAREHOUSE_ID: ""
+      # Pass schema_names via TF_VAR_ to avoid unquoted-expansion glob issues with JSON brackets.
+      TF_VAR_schema_names: "{{.SCHEMAS_JSON}}"
     cmds:
       - |
         set -euo pipefail
@@ -574,7 +576,6 @@ tasks:
           -var=storage_account_name=${STORAGE_ACCOUNT_NAME}
           -var=uc_root_container=${UC_ROOT_CONTAINER}
           -var=catalog_name={{.CATALOG_NAME}}
-          -var=schema_names={{.SCHEMAS_JSON}}
         "
 
         echo "==> Step 1: Destroy grants"
