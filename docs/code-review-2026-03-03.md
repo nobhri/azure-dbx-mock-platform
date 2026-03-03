@@ -86,6 +86,56 @@ Error: creating Scoped Budget: unexpected status 400 (400 Bad Request)
 
 ---
 
+### Finding 4 — `inputs.destroy` boolean vs string comparison — destroy never runs (HIGH)
+
+**File:** `.github/workflows/workload-azure.yaml` lines 82, 93, 113
+**Discovered:** 2026-03-04 via GH Actions log analysis
+
+The `workflow_dispatch` input `destroy` is declared as `type: boolean`, but all three `if:` conditions compare it against the string literal `'true'`:
+
+```yaml
+# line 82
+if: github.ref == 'refs/heads/main' && inputs.destroy != 'true'
+# line 93
+if: inputs.destroy == 'true'
+# line 113
+if: always() && inputs.destroy != 'true'
+```
+
+In GitHub Actions expression evaluation, when operand types differ, both sides are **coerced to numbers**:
+
+| Operand | Coerced value |
+|---------|---------------|
+| Boolean `true` | `1` |
+| String `'true'` (non-numeric) | `NaN` |
+
+Since `1 != NaN` is always `true` and `1 == NaN` is always `false`:
+
+- `inputs.destroy == 'true'` → always `false` → **Destroy step never runs**
+- `inputs.destroy != 'true'` → always `true` → **Apply always runs**, even when destroy was requested
+
+This is a regression introduced by PR #30, which standardised comparisons to explicit string `'true'` thinking it was safer. The intent was correct; the direction was wrong — boolean inputs must be compared as booleans.
+
+**Fix:** Change all three conditions from string `'true'` to unquoted boolean `true`:
+
+```yaml
+# line 82
+if: github.ref == 'refs/heads/main' && inputs.destroy != true
+# line 93
+if: inputs.destroy == true
+# line 113
+if: always() && inputs.destroy != true
+```
+
+This works correctly for all trigger types:
+- `workflow_dispatch` with `destroy: true` → `true == true` → Destroy runs, Apply skipped
+- `workflow_dispatch` with `destroy: false` → `false == true` → Apply runs, Destroy skipped
+- `push` to main (no `inputs`) → `null` coerces to `0`, `0 != 1` → Apply runs, Destroy skipped
+
+→ Filed as new issue.
+
+---
+
 ## Ongoing Finding — workload-dbx orphaned credential (issue #26 not operationally resolved)
 
 **Run:** [22606426819](https://github.com/nobhri/azure-dbx-mock-platform/actions/runs/22606426819)
@@ -113,9 +163,10 @@ This is a live environment blocker. Consider reopening issue #26 to track operat
 | Issue | Title | Severity | Status |
 |-------|-------|----------|--------|
 | [#11](https://github.com/nobhri/azure-dbx-mock-platform/issues/11) | Add tflint to CI | LOW | **Open** — PR attempted but blocked by OIDC issue |
-| New | `ADLS_STORAGE_NAME` secret not set — workload-azure broken | HIGH | **Open** — filed today |
-| New | OIDC not configured for `pull_request` subject | MEDIUM | **Open** — filed today |
-| New | guardrails `BUDGET_END` expired | LOW | **Open** — filed today |
+| [#39](https://github.com/nobhri/azure-dbx-mock-platform/issues/39) | `ADLS_STORAGE_NAME` secret not set — workload-azure broken | HIGH | **Open** — filed today |
+| [#40](https://github.com/nobhri/azure-dbx-mock-platform/issues/40) | OIDC not configured for `pull_request` subject | MEDIUM | **Open** — filed today |
+| [#41](https://github.com/nobhri/azure-dbx-mock-platform/issues/41) | guardrails `BUDGET_END` expired | LOW | **Open** — filed today (fix in progress, PR #43) |
+| New | `inputs.destroy` boolean vs string comparison — destroy never runs | HIGH | **Open** — filed 2026-03-04 |
 
 **All other previously tracked issues are now closed.**
 
@@ -131,7 +182,7 @@ This is a live environment blocker. Consider reopening issue #26 to track operat
 | Issue #12 — tfstate in root | ✅ Fixed (PR #35 docs) |
 | Issue #19 — CREATE EXTERNAL LOCATION | ✅ Documented as per-cycle manual step |
 | Issue #26 — UC orphaned objects | ⚠️ **Not operationally resolved** — docs added but orphan not cleared |
-| Issue #28 — destroy comparison style | ✅ Fixed (PR #30) |
+| Issue #28 — destroy comparison style | ⚠️ **Regression** — PR #30 standardised to string `'true'` but boolean inputs require unquoted `true`; destroy never runs |
 | Issue #6 — variable mismatches | ✅ No regression |
 | Issue #21 — SP lacks UAA | ✅ No regression |
 | Issue #22 — ANSI output guard | ✅ No regression |
@@ -150,9 +201,10 @@ This is a live environment blocker. Consider reopening issue #26 to track operat
 
 ### Unblock now
 
-1. **Populate `ADLS_STORAGE_NAME` secret** in GitHub → Settings → Secrets → Actions (unblocks all workload-azure runs)
-2. **Clear orphaned UC objects** — delete `uc-mi-credential` and `uc-root-location` in Databricks Account Console, then re-run workload-dbx apply and re-grant CREATE EXTERNAL LOCATION (unblocks all workload-dbx runs)
-3. **Update `BUDGET_END`** in `guardrails.yaml` to a future date (unblocks guardrails)
+1. **Fix `inputs.destroy` comparison in workload-azure.yaml** — change `== 'true'` / `!= 'true'` to `== true` / `!= true` (3 lines); makes destroy via `workflow_dispatch` functional
+2. **Populate `ADLS_STORAGE_NAME` secret** in GitHub → Settings → Secrets → Actions (unblocks all workload-azure runs)
+3. **Clear orphaned UC objects** — delete `uc-mi-credential` and `uc-root-location` in Databricks Account Console, then re-run workload-dbx apply and re-grant CREATE EXTERNAL LOCATION (unblocks all workload-dbx runs)
+4. **Update `BUDGET_END`** in `guardrails.yaml` to a future date (unblocks guardrails)
 
 ### Fix soon
 
