@@ -306,9 +306,12 @@ In a multi-Storage-Account setup, NCC configuration must be repeated for each ac
 
 ### Known Issues
 
-- Terraform `destroy` for managed catalog resources fails due to dependency ordering — workaround is documented, manual cleanup required in some cases
 - `go-task` runner abstraction became complex; CI/CD integration needs simplification
-- **Destroy order matters:** Always destroy `workload-dbx` before `workload-azure`. Destroying Azure first leaves Unity Catalog account-scope objects (`uc-mi-credential`, `uc-root-location`) orphaned — they must be deleted manually before re-applying. See [code-review-2026-03-03.md](docs/code-review-2026-03-03.md) for recovery steps.
+- **Destroy order matters:** Always destroy `workload-dbx` before `workload-azure`. Destroying Azure first leaves Unity Catalog account-scope objects (`uc-mi-credential`, `uc-root-location`) orphaned. `force_destroy = true` on the metastore (PR [#50](https://github.com/nobhri/azure-dbx-mock-platform/pull/50)) now cascade-deletes notebook-created catalogs automatically — manual UC cleanup is no longer required when the correct destroy order is followed.
+- **Post-destroy manual grants required:** After each full destroy + recreate cycle, the metastore admin must re-run both grants manually (the SP cannot self-grant account-level UC privileges):
+  - `GRANT CREATE EXTERNAL LOCATION ON METASTORE TO '<SP_client_id>';`
+  - `GRANT CREATE CATALOG ON METASTORE TO '<SP_client_id>';` — required for the catalog/schema DDL workflow (see [issue #53](https://github.com/nobhri/azure-dbx-mock-platform/issues/53))
+- **PR CI always fails Azure login:** OIDC federated credentials are not configured for the `pull_request` event subject — `terraform plan` cannot run on PRs. Fix: add `repo:nobhri/azure-dbx-mock-platform:pull_request` as a federated credential in Entra ID. See [issue #40](https://github.com/nobhri/azure-dbx-mock-platform/issues/40).
 - **Deploying this yourself:** Two GitHub repository secrets must be set before CI will succeed:
   - `ADLS_STORAGE_NAME` — name of the Storage Account used as Unity Catalog root storage
   - `TFSTATE_SA_UNIQ` — unique suffix of the Terraform state Storage Account name (`st<UNIQ>tfstate`)
