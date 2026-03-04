@@ -1,0 +1,47 @@
+bundle:
+  name: mock-platform-catalog
+
+variables:
+  catalog_env:
+    description: "Target environment (dev|staging|prod)"
+    default: dev
+
+workspace:
+  host: ${DATABRICKS_HOST}   # injected by CI workflow
+
+targets:
+  dev:
+    mode: development
+    variables:
+      catalog_env: dev
+  staging:
+    mode: development
+    variables:
+      catalog_env: staging
+  prod:
+    mode: production
+    variables:
+      catalog_env: prod
+
+resources:
+  jobs:
+    setup_catalog_schema:
+      name: "setup_catalog_schema [${var.catalog_env}]"
+      tasks:
+        - task_key: ddl
+          notebook_task:
+            notebook_path: ./notebooks/00_setup_catalog_schema.py
+            source: WORKSPACE
+            base_parameters:
+              env: "${var.catalog_env}"
+          new_cluster:
+            spark_version: "14.3.x-scala2.12"
+            node_type_id: "Standard_DS3_v2"
+            num_workers: 0
+            spark_conf:
+              spark.master: "local[*, 4]"
+              spark.databricks.cluster.profile: "singleNode"
+            custom_tags:
+              ResourceClass: SingleNode
+      queue:
+        enabled: true
