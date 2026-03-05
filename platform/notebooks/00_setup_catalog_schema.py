@@ -38,7 +38,8 @@ print(sql_rendered)
 
 # COMMAND ----------
 
-statements = [s.strip() for s in sql_rendered.split(";") if s.strip() and not s.strip().startswith("--")]
+sql_no_comments = "\n".join(line for line in sql_rendered.splitlines() if not line.strip().startswith("--"))
+statements = [s.strip() for s in sql_no_comments.split(";") if s.strip()]
 
 for stmt in statements:
     print(f"Executing:\n{stmt}\n")
