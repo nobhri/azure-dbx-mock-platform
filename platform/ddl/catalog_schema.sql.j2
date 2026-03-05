@@ -4,6 +4,7 @@
 -- Rendered by 00_setup_catalog_schema.py with env={{ env }}
 
 CREATE CATALOG IF NOT EXISTS mock_{{ env }}
+  MANAGED LOCATION 'abfss://{{ uc_root_container }}@{{ storage_account_name }}.dfs.core.windows.net/catalogs/mock_{{ env }}'
   COMMENT 'Mock data platform catalog — {{ env }} environment';
 
 CREATE SCHEMA IF NOT EXISTS mock_{{ env }}.bronze
