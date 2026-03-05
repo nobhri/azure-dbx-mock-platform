@@ -11,8 +11,14 @@ from jinja2 import Template
 # COMMAND ----------
 
 dbutils.widgets.text("env", "dev")
+dbutils.widgets.text("storage_account_name", "")
+dbutils.widgets.text("uc_root_container", "")
 env = dbutils.widgets.get("env")
-print(f"Target environment: {env}")
+storage_account_name = dbutils.widgets.get("storage_account_name")
+uc_root_container = dbutils.widgets.get("uc_root_container")
+print(f"Target environment   : {env}")
+print(f"Storage account      : {storage_account_name}")
+print(f"UC root container    : {uc_root_container}")
 
 # COMMAND ----------
 
@@ -32,7 +38,11 @@ print(f"Template path: {template_path}")
 with open(template_path) as f:
     raw = f.read()
 
-sql_rendered = Template(raw).render(env=env)
+sql_rendered = Template(raw).render(
+    env=env,
+    storage_account_name=storage_account_name,
+    uc_root_container=uc_root_container,
+)
 print("=== Rendered SQL ===")
 print(sql_rendered)
 
