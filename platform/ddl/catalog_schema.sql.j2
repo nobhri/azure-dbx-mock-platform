@@ -1,0 +1,16 @@
+-- catalog_schema.sql.j2
+-- ADR-001: Catalog/Schema is managed here, NOT in Terraform
+-- ADR-003: All statements use IF NOT EXISTS (idempotent)
+-- Rendered by 00_setup_catalog_schema.py with env={{ env }}
+
+CREATE CATALOG IF NOT EXISTS mock_{{ env }}
+  COMMENT 'Mock data platform catalog — {{ env }} environment';
+
+CREATE SCHEMA IF NOT EXISTS mock_{{ env }}.bronze
+  COMMENT 'Raw ingested data — {{ env }}';
+
+CREATE SCHEMA IF NOT EXISTS mock_{{ env }}.silver
+  COMMENT 'Cleaned and validated data — {{ env }}';
+
+CREATE SCHEMA IF NOT EXISTS mock_{{ env }}.gold
+  COMMENT 'Business-ready aggregations — {{ env }}';
