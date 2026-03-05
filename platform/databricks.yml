@@ -6,9 +6,6 @@ variables:
     description: "Target environment (dev|staging|prod)"
     default: dev
 
-workspace:
-  host: ${DATABRICKS_HOST}   # injected by CI workflow
-
 targets:
   dev:
     mode: development
