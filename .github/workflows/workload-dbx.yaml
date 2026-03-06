@@ -82,6 +82,27 @@ jobs:
             -backend-config="container_name=$TFSTATE_CONTAINER" \
             -backend-config="key=$TFSTATE_KEY"
 
+      # Temporary diagnostic step — remove once issue #64 is fully resolved.
+      # Lists all metastores visible in the Databricks account (confirms UUID and name).
+      # Also prints METASTORE_ID character count: a bare UUID is exactly 36 chars.
+      # If the count differs, the secret has extra whitespace or content.
+      - name: Diagnose — list account metastores and verify METASTORE_ID length
+        run: |
+          TOKEN=$(az account get-access-token \
+            --resource 2ff814a6-3304-4ab8-85cb-cd0e6f879c1d \
+            --query accessToken -o tsv)
+
+          echo "=== Metastores in Databricks account ==="
+          curl -sf \
+            -H "Authorization: Bearer $TOKEN" \
+            "https://accounts.azuredatabricks.net/api/2.0/accounts/${{ secrets.DATABRICKS_ACCOUNT_ID }}/metastores" \
+            | jq -r '.metastores[]? | "  id=\(.metastore_id)  name=\(.name)"' \
+            || echo "  (API error or no metastores)"
+
+          echo ""
+          echo "=== METASTORE_ID secret character count (bare UUID = 36) ==="
+          printf '%s' "${{ secrets.METASTORE_ID }}" | wc -c
+
       - name: Terraform Plan (PR)
         if: github.event_name == 'pull_request'
         run: |
