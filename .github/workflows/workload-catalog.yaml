@@ -47,10 +47,12 @@ jobs:
             -backend-config="container_name=workload-tfstate" \
             -backend-config="key=azure.tfstate"
 
-      - name: Capture workspace_url from workload-azure outputs
+      - name: Capture workload-azure outputs
         id: azout
         run: |
           echo "WORKSPACE_URL=$(terraform -chdir=infra/workload-azure output -raw workspace_url)" >> $GITHUB_OUTPUT
+          echo "STORAGE_ACCOUNT_NAME=$(terraform -chdir=infra/workload-azure output -raw storage_account_name)" >> $GITHUB_OUTPUT
+          echo "UC_ROOT_CONTAINER=$(terraform -chdir=infra/workload-azure output -raw uc_root_container)" >> $GITHUB_OUTPUT
 
       - name: Set DATABRICKS_HOST
         run: echo "DATABRICKS_HOST=https://${{ steps.azout.outputs.WORKSPACE_URL }}" >> $GITHUB_ENV
