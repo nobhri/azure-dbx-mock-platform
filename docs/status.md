@@ -12,7 +12,7 @@ opened, closed, or changed severity during the session.
 |-------|----------|-------|-------|
 | [#40](https://github.com/nobhri/azure-dbx-mock-platform/issues/40) | MEDIUM | OIDC not configured for pull_request subject | PR CI always fails Azure login. Fix: add `pull_request` federated credential in Entra ID. No code change needed. |
 | [#53](https://github.com/nobhri/azure-dbx-mock-platform/issues/53) | LOW | Document GRANT CREATE CATALOG prerequisite | Update GETTING_STARTED.md and post-destroy-grants runbook. Partially addressed by `docs/runbooks/post-destroy-grants.md`. |
-| [#80](https://github.com/nobhri/azure-dbx-mock-platform/issues/80) | HIGH | workload-dbx apply fails after successful destroy: static import block uses stale METASTORE_ID | Replace static `import {}` block with dynamic CI discovery step; remove `METASTORE_ID` secret dependency. Fix: PR #81. |
+| [#82](https://github.com/nobhri/azure-dbx-mock-platform/issues/82) | LOW | Test coverage gap: dynamic metastore import path not exercised in CI | Branch 3 ("Found existing metastore — importing") never triggered. Requires manual `terraform state rm` to test. See session-008 for procedure. |
 
 ---
 
@@ -31,6 +31,7 @@ These require direct human action in Azure, GitHub, or Databricks — cannot be 
 
 | Issue | Title | Closed by |
 |-------|-------|-----------|
+| [#80](https://github.com/nobhri/azure-dbx-mock-platform/issues/80) | workload-dbx apply fails after successful destroy: static import block uses stale METASTORE_ID | PR #81 — dynamic metastore discovery step; METASTORE_ID secret removed |
 | [#68](https://github.com/nobhri/azure-dbx-mock-platform/issues/68) | workload-catalog fails when workload-dbx external location not present | PR #78 — preflight check added to workflow; GETTING_STARTED.md updated |
 | [#64](https://github.com/nobhri/azure-dbx-mock-platform/issues/64) | METASTORE_ID secret had wrong UUID (account ID copied instead of metastore ID) | PRs #72 #74 #75 — import block restored; correct UUID set; apply succeeded |
 | [#62](https://github.com/nobhri/azure-dbx-mock-platform/issues/62) | Metastore state drift (reached region limit) | PR #63 — import block added |
