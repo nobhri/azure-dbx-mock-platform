@@ -26,8 +26,11 @@ Guardrails and the tfstate backend are not touched — they persist across cycle
 2. Trigger `workload-dbx.yaml` (no destroy flag)
    - Provisions: UC Metastore, Workspace assignment, Storage Credential, External Location
    - **Must complete before workload-catalog** — External Location created here is required by catalog
-3. Run post-destroy grants — see [post-destroy-grants.md](./post-destroy-grants.md)
-4. Trigger `workload-catalog` — creates Catalog and Schemas via Jinja2 + SQL notebook
+3. **Update `METASTORE_ID` GitHub secret** — copy the new UUID from the `metastore_id` output in the CI Apply logs
+   - GitHub → Settings → Secrets and variables → Actions → `METASTORE_ID`
+   - A fresh metastore is created on every recreate; the UUID always changes
+4. Run post-destroy grants — see [post-destroy-grants.md](./post-destroy-grants.md)
+5. Trigger `workload-catalog` — creates Catalog and Schemas via Jinja2 + SQL notebook
 
 ---
 
@@ -55,5 +58,5 @@ Error: cannot create storage credential: Storage Credential 'uc-mi-credential' a
   destroyed in this cycle — they persist and remain valid after recreate.
 - The Metastore is destroyed and recreated by `workload-dbx` destroy/apply. This is expected;
   `force_destroy = true` on the metastore ensures notebook-created catalogs are cascade-deleted.
-- After recreate, the METASTORE_ID GitHub secret may need updating if the new Metastore UUID
-  differs from the stored value — see [issue #64](https://github.com/nobhri/azure-dbx-mock-platform/issues/64).
+- After recreate, the `METASTORE_ID` GitHub secret **must** be updated with the new UUID from the
+  `workload-dbx` Apply output. The metastore UUID changes on every destroy/recreate cycle.
