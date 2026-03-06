@@ -34,25 +34,17 @@ locals {
 # Unity Catalog Metastore (ACCOUNT SCOPE)
 # -------------------------------------------------------------------
 
-# Import the existing metastore into Terraform state.
-# The UC metastore is account-scoped and is NOT destroyed by workload-dbx
-# destroy — it persists across workspace destroy/recreate cycles.
-# This import block ensures Terraform manages the pre-existing metastore
-# rather than attempting to create a new one (which would hit the
-# 1-per-region limit). Safe to leave permanently: Terraform skips the
-# import when the resource is already in state.
-import {
-  provider = databricks.account
-  to       = databricks_metastore.this
-  id       = var.metastore_id
-}
+# No static import block — the CI workflow handles import dynamically.
+# See workload-dbx.yaml: "Import metastore if it exists but not in state".
+# This handles both scenarios:
+#   - Clean recreate (metastore was successfully destroyed): Terraform creates fresh.
+#   - Failed-destroy recovery (metastore survived): CI discovers UUID via API and imports.
 
 resource "databricks_metastore" "this" {
   provider = databricks.account
 
-  name = "mvp-metastore"
-  # storage_root = local.storage_root_abfss
-  storage_root = "abfss://${var.uc_root_container}@${var.storage_account_name}.dfs.core.windows.net/${var.metastore_id}"
+  name         = "mvp-metastore"
+  storage_root = "abfss://${var.uc_root_container}@${var.storage_account_name}.dfs.core.windows.net/"
   # force_destroy allows Terraform destroy to cascade-delete all UC objects
   # (catalogs, schemas, storage credentials) even when not managed by Terraform
   # (e.g. catalog/schema created by Jinja2 notebook — see ADR-001).

@@ -82,6 +82,42 @@ jobs:
             -backend-config="container_name=$TFSTATE_CONTAINER" \
             -backend-config="key=$TFSTATE_KEY"
 
+      # Discover and import an existing metastore into Terraform state if needed.
+      # Handles the "failed-destroy recovery" case: if a previous destroy run failed
+      # mid-way, the metastore may still exist in the account but no longer be in state.
+      # If the metastore was successfully destroyed, this step is a no-op and Terraform
+      # will create a fresh one on apply.
+      - name: Import metastore if it exists but not in state
+        if: inputs.destroy != true
+        run: |
+          if terraform -chdir=infra/workload-dbx state show databricks_metastore.this > /dev/null 2>&1; then
+            echo "Metastore already in Terraform state — skipping import"
+            exit 0
+          fi
+          TOKEN=$(az account get-access-token \
+            --resource 2ff814a6-3304-4ab8-85cb-cd0e6f879c1d \
+            --query accessToken -o tsv)
+          EXISTING_ID=$(curl -sf \
+            -H "Authorization: Bearer $TOKEN" \
+            "https://accounts.azuredatabricks.net/api/2.0/accounts/${{ secrets.DATABRICKS_ACCOUNT_ID }}/metastores" \
+            | jq -r '.metastores[]? | .metastore_id' | head -1)
+          if [ -z "$EXISTING_ID" ]; then
+            echo "No existing metastore found — Terraform will create a fresh one"
+            exit 0
+          fi
+          echo "Found existing metastore $EXISTING_ID — importing into Terraform state"
+          terraform -chdir=infra/workload-dbx import \
+            -var="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
+            -var="azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
+            -var="resource_group_name=$RG_NAME" \
+            -var="databricks_account_id=${{ secrets.DATABRICKS_ACCOUNT_ID }}" \
+            -var="azure_workspace_resource_id=${{ steps.azout.outputs.WORKSPACE_RESOURCE_ID }}" \
+            -var="workspace_name=${{ steps.azout.outputs.WORKSPACE_NAME }}" \
+            -var="access_connector_id=${{ steps.azout.outputs.ACCESS_CONNECTOR_ID }}" \
+            -var="storage_account_name=${{ steps.azout.outputs.STORAGE_ACCOUNT_NAME }}" \
+            -var="uc_root_container=${{ steps.azout.outputs.UC_ROOT_CONTAINER }}" \
+            databricks_metastore.this "$EXISTING_ID"
+
       - name: Terraform Plan (PR)
         if: github.event_name == 'pull_request'
         run: |
@@ -90,7 +126,6 @@ jobs:
             -var="azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
             -var="resource_group_name=$RG_NAME" \
             -var="databricks_account_id=${{ secrets.DATABRICKS_ACCOUNT_ID }}" \
-            -var="metastore_id=${{ secrets.METASTORE_ID }}" \
             -var="azure_workspace_resource_id=${{ steps.azout.outputs.WORKSPACE_RESOURCE_ID }}" \
             -var="workspace_name=${{ steps.azout.outputs.WORKSPACE_NAME }}" \
             -var="access_connector_id=${{ steps.azout.outputs.ACCESS_CONNECTOR_ID }}" \
@@ -106,7 +141,6 @@ jobs:
             -var="azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
             -var="resource_group_name=$RG_NAME" \
             -var="databricks_account_id=${{ secrets.DATABRICKS_ACCOUNT_ID }}" \
-            -var="metastore_id=${{ secrets.METASTORE_ID }}" \
             -var="azure_workspace_resource_id=${{ steps.azout.outputs.WORKSPACE_RESOURCE_ID }}" \
             -var="workspace_name=${{ steps.azout.outputs.WORKSPACE_NAME }}" \
             -var="access_connector_id=${{ steps.azout.outputs.ACCESS_CONNECTOR_ID }}" \
@@ -121,7 +155,6 @@ jobs:
             -var="azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
             -var="resource_group_name=$RG_NAME" \
             -var="databricks_account_id=${{ secrets.DATABRICKS_ACCOUNT_ID }}" \
-            -var="metastore_id=${{ secrets.METASTORE_ID }}" \
             -var="azure_workspace_resource_id=${{ steps.azout.outputs.WORKSPACE_RESOURCE_ID }}" \
             -var="workspace_name=${{ steps.azout.outputs.WORKSPACE_NAME }}" \
             -var="access_connector_id=${{ steps.azout.outputs.ACCESS_CONNECTOR_ID }}" \

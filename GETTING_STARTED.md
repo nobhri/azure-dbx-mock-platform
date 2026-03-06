@@ -18,7 +18,6 @@
 | `AZURE_CLIENT_ID` | App registration client ID (created below) |
 | `TFSTATE_SA_UNIQ` | Short unique suffix for state Storage Account name |
 | `DATABRICKS_ACCOUNT_ID` | Databricks Account ID (for Unity Catalog setup) |
-| `METASTORE_ID` | UUID of the existing Unity Catalog metastore |
 
 ---
 
