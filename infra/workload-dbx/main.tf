@@ -34,6 +34,19 @@ locals {
 # Unity Catalog Metastore (ACCOUNT SCOPE)
 # -------------------------------------------------------------------
 
+# Import the existing metastore into Terraform state.
+# The UC metastore is account-scoped and is NOT destroyed by workload-dbx
+# destroy — it persists across workspace destroy/recreate cycles.
+# This import block ensures Terraform manages the pre-existing metastore
+# rather than attempting to create a new one (which would hit the
+# 1-per-region limit). Safe to leave permanently: Terraform skips the
+# import when the resource is already in state.
+import {
+  provider = databricks.account
+  to       = databricks_metastore.this
+  id       = var.metastore_id
+}
+
 resource "databricks_metastore" "this" {
   provider = databricks.account
 
