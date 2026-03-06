@@ -79,7 +79,10 @@ jobs:
 
       - name: Bundle deploy
         working-directory: platform
-        run: databricks bundle deploy --target ${{ steps.target.outputs.TARGET }}
+        run: |
+          databricks bundle deploy --target ${{ steps.target.outputs.TARGET }} \
+            --var "storage_account_name=${{ steps.azout.outputs.STORAGE_ACCOUNT_NAME }}" \
+            --var "uc_root_container=${{ steps.azout.outputs.UC_ROOT_CONTAINER }}"
 
       - name: Bundle run — setup_catalog_schema
         working-directory: platform

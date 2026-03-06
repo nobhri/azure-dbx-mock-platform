@@ -34,6 +34,16 @@ locals {
 # Unity Catalog Metastore (ACCOUNT SCOPE)
 # -------------------------------------------------------------------
 
+# Import the existing metastore into state if it already exists in the Databricks account.
+# Prevents "reached the limit for metastores in region" errors caused by state drift
+# (e.g. after a destroy that removed the resource from state but not from the account).
+# Safe to leave permanently: Terraform skips the import when the resource is already in state.
+import {
+  provider = databricks.account
+  to       = databricks_metastore.this
+  id       = var.metastore_id
+}
+
 resource "databricks_metastore" "this" {
   provider = databricks.account
 
