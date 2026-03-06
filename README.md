@@ -307,14 +307,16 @@ In a multi-Storage-Account setup, NCC configuration must be repeated for each ac
 
 Detailed write-ups on specific decisions:
 
+- [x] **[Why I Built a Mock Data Platform — and What the CI/CD Taught Me](https://platform-notes.hashnode.dev/why-i-built-a-mock-data-platform-and-what-the-ci-cd-taught-me)**
+  *A design journal for Terraform + Databricks + GitHub Actions: Part 1 — Workspace & Metastore*
+  Repo snapshot: [blog/cicd-part1](https://github.com/nobhri/azure-dbx-mock-platform/tree/blog/cicd-part1)
+
 - [ ] Terraform vs SQL for Unity Catalog Management — a real trade-off analysis
 - [ ] Why I banned local `databricks bundle run`
 - [ ] Asset Bundles parameter propagation: the bug and the fix
 - [ ] Designing idempotent Databricks jobs
 - [ ] OIDC authentication for Databricks on Azure — no secrets, no stress
 - [ ] Terraform destroy and the cost incident: what I learned
-
-*(Links will be added as articles are published)*
 
 -----
 
