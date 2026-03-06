@@ -79,8 +79,15 @@ jobs:
 
       - name: Preflight — verify UC external location exists
         run: |
-          COUNT=$(databricks external-locations list --output json \
-            | jq '[.[] | select(.name == "uc-root-location")] | length')
+          # Capture stdout+stderr together; a non-zero exit (e.g. "No metastore assigned")
+          # is itself a preflight failure — the workspace is not UC-ready.
+          if ! RAW=$(databricks external-locations list --output json 2>&1); then
+            echo "::error::Preflight failed: $RAW"
+            echo "  workload-dbx must be applied before workload-catalog."
+            echo "  See docs/runbooks/destroy-recreate.md for the required deployment order."
+            exit 1
+          fi
+          COUNT=$(echo "$RAW" | jq '[.[] | select(.name == "uc-root-location")] | length' 2>/dev/null || echo "0")
           if [ "$COUNT" -eq 0 ]; then
             echo "::error::UC external location 'uc-root-location' not found."
             echo "  workload-dbx must be applied before workload-catalog."

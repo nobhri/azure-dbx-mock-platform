@@ -12,6 +12,9 @@ opened, closed, or changed severity during the session.
 |-------|----------|-------|-------|
 | [#40](https://github.com/nobhri/azure-dbx-mock-platform/issues/40) | MEDIUM | OIDC not configured for pull_request subject | PR CI always fails Azure login. Fix: add `pull_request` federated credential in Entra ID. No code change needed. |
 | [#53](https://github.com/nobhri/azure-dbx-mock-platform/issues/53) | LOW | Document GRANT CREATE CATALOG prerequisite | Update GETTING_STARTED.md and post-destroy-grants runbook. Partially addressed by `docs/runbooks/post-destroy-grants.md`. |
+| [#84](https://github.com/nobhri/azure-dbx-mock-platform/issues/84) | HIGH | Preflight fix commit not merged into main — old buggy code still active | Fix pushed after PR #79 merged; dangling commit. PR #84 re-applies the fix. |
+| [#87](https://github.com/nobhri/azure-dbx-mock-platform/issues/87) | MEDIUM | ADR conflict: catalog grants not assignable to Terraform when catalog is Jinja2-managed | ADR-001 assigns catalog to Jinja2; ADR-005 assigns all grants to Terraform. Options: A (amend ADR-005, grants in Jinja2), B (amend ADR-001, grants in Terraform with ordering dep), C (new ADR-006). Needs decision. |
+| [#85](https://github.com/nobhri/azure-dbx-mock-platform/issues/85) | MEDIUM | UC catalog/schema not visible to human user — missing USE CATALOG/USE SCHEMA grants | Per ADR-005: Entra ID group via Native Sync. Runbook updated. Pending: create Entra ID group + run grants. Blocked by #87. |
 | [#82](https://github.com/nobhri/azure-dbx-mock-platform/issues/82) | LOW | Test coverage gap: dynamic metastore import path not exercised in CI | Branch 3 ("Found existing metastore — importing") never triggered. Requires manual `terraform state rm` to test. See session-008 for procedure. |
 
 ---
@@ -23,7 +26,9 @@ These require direct human action in Azure, GitHub, or Databricks — cannot be 
 | Action | Priority | Where |
 |--------|----------|-------|
 | Add OIDC federated credential for `pull_request` subject | MEDIUM | Entra ID → App Registration → Federated credentials |
-| After each destroy/recreate: run post-destroy grants | REQUIRED | Databricks SQL warehouse — see [runbook](runbooks/post-destroy-grants.md) |
+| After each destroy/recreate: run post-destroy grants (Step 1 — SP grants) | REQUIRED | Databricks SQL warehouse — see [runbook](runbooks/post-destroy-grants.md) |
+| After workload-catalog: run catalog visibility grants (Step 2 — Entra ID group) | REQUIRED | Databricks SQL warehouse — see [runbook](runbooks/post-destroy-grants.md) |
+| Create Entra ID group `databricks-platform-users` and add human users | ONE-TIME | Entra ID → Groups |
 
 ---
 
