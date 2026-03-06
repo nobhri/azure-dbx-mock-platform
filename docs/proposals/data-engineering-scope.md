@@ -158,3 +158,136 @@ An ADR entry covering this trade-off belongs in the README Future Work section o
 - 1–2 entities maximum; complexity should serve the ETL design, not the domain model.
 - Sample data generation: hand-written CSV or Faker (decide at implementation time).
 - Medallion architecture (bronze → silver → gold): show one layer transition at minimum; full three-layer medallion is optional.
+
+---
+
+## 10. Production Considerations and ADR Candidates
+
+These items are **not implemented in this mock** but are documented here as known simplifications.
+Each represents a gap between the mock design and a production-grade platform that should be
+captured in an ADR or production runbook before any real deployment.
+
+---
+
+### 10.1 Single Workspace vs Dedicated Workspace per Environment
+
+**Mock design:** One workspace. Environment isolation is achieved by switching the Asset Bundles
+target variable (`dev` / `staging` / `prod`), which maps to different catalog names via the SDLC
+lookup function (see Section 4).
+
+**Production reality:** Dedicated workspace per environment (dev / staging / prod). Each workspace
+has its own identity boundary, network configuration, and catalog binding. Workspace-level RBAC
+and governance are cleanly separated.
+
+**Why single workspace is an intentional simplification:**
+- Provisioning and maintaining three workspaces multiplies Azure cost and CI/CD complexity.
+- For a portfolio mock, demonstrating the SDLC pattern (catalog switching via Asset Bundles target)
+  is sufficient to show the design intent.
+- The single-workspace design does not prevent later migration: catalog naming conventions and the
+  SDLC lookup function are already environment-aware.
+
+**ADR candidate:** Document the single-workspace trade-off and the migration path to per-environment
+workspaces when the platform scales beyond a single team.
+
+---
+
+### 10.2 System Tables for Catalog / Schema Change Tracking
+
+**Current state:** DDL is idempotent (`CREATE IF NOT EXISTS`). Deletions are not detected at apply
+time — explicitly accepted in ADR-001 as an MVP trade-off ("DDL `IF NOT EXISTS` is idempotent but
+will not detect deletions").
+
+**When system tables become relevant:** Once the Jinja2 catalog/schema management layer is in place
+and schemas are being modified over time (column additions, type changes, object drops), audit-level
+tracking becomes necessary for:
+- Detecting drift between the declared DDL and the actual UC state
+- Auditing who changed what and when (compliance, incident response)
+- Triggering alerts when unexpected schema changes occur
+
+**Enablement conditions:**
+- System tables must be enabled at the account level: `system.access`, `system.information_schema`
+- Requires Unity Catalog metastore (already in place)
+- Requires a scheduled job or CI/CD step that queries `system.information_schema.columns` and
+  compares against the expected schema from the Jinja2 templates
+
+**ADR candidate:** Document drift detection approach (system table query vs Terraform plan vs
+application-level assertion) and the enablement prerequisites.
+
+---
+
+### 10.3 Infra / Platform Repo Separation and Cross-Repo Output Passing
+
+**Current state:** Single repository. `workload-azure` and `workload-dbx` run as separate GitHub
+Actions workflows in the same repo. Outputs from `workload-azure` (e.g., storage account name,
+workspace URL) are available to `workload-dbx` via Terraform remote state stored in the shared
+Azure Storage backend.
+
+**Production reality:** Infrastructure (Azure resources) and platform (Databricks configuration,
+Unity Catalog) are often owned by different teams and live in separate repositories. Cross-repo
+output passing is a non-trivial design problem:
+
+| Mechanism | Trade-offs |
+|-----------|-----------|
+| Shared Terraform remote state | Both repos must have read access to the same backend; tight coupling at the state layer |
+| GitHub Secrets / Variables (manual) | Requires human update after each infra apply; error-prone |
+| Cross-repo GitHub Actions triggers with output artifacts | Complex workflow orchestration; artifact lifetime management |
+| Published artifact / API endpoint | Most decoupled; highest implementation cost |
+
+**Relationship to ADR-001:** ADR-001 defines the Terraform responsibility boundary (Azure + Metastore
+= Terraform, Catalog/Schema = SQL). Repo separation is the organizational consequence of that
+boundary: once the boundary is firm, each side can be owned and deployed independently. The output-
+passing problem only arises when the repos split.
+
+**ADR candidate:** Document which cross-repo output mechanism to adopt if repos are split, and the
+conditions under which a split is warranted (team size, change velocity, security isolation
+requirements).
+
+---
+
+### 10.4 Single Service Principal vs Separated SP per Layer
+
+**Current state:** One Service Principal handles all CI/CD operations: Azure resource provisioning
+(Terraform), Databricks workspace configuration (Terraform), and Databricks job execution (Asset
+Bundles + SQL notebook).
+
+**Production reality:** Least-privilege design separates concerns:
+
+| SP | Scope |
+|----|-------|
+| Infra SP | Azure RBAC (Contributor on RG, Storage Blob Data Contributor) |
+| Platform SP | Databricks workspace admin, Unity Catalog grants |
+| Data SP | Job execution, catalog read/write only |
+
+**The trade-off this creates (coupled with 10.3):**
+- With a single SP and single repo, Terraform remote state is readable by both the infra and
+  platform workflows under the same identity — output passing is free.
+- With separated SPs and separate repos, the infra SP's outputs are no longer directly accessible
+  to the platform SP. An explicit output-passing mechanism (see 10.3) is required.
+- Separating SPs also requires separate federated credential configurations in Entra ID and
+  separate GitHub secret sets.
+
+**ADR candidate:** Document the single-SP trade-off and the separation design when moving toward
+production. Reference the repo-separation ADR candidate in 10.3 — these two decisions are coupled
+and should be resolved together.
+
+---
+
+### 10.5 DDL Testing Approaches
+
+*Extends the future work items in Section 8.*
+
+The Jinja2-based DDL layer (catalog and schema creation) currently has no automated tests. The
+following patterns are candidates when DDL testing is introduced:
+
+| Pattern | Description |
+|---------|-------------|
+| `CREATE IF NOT EXISTS` idempotency verification | Run the DDL notebook twice against a test catalog; assert no errors and no state change on the second run |
+| Schema drift detection | Query `system.information_schema.columns` before and after DDL execution; assert the diff matches the expected changes exactly |
+| DDL render test (Python) | Unit-test the Jinja2 template rendering in isolation — assert the rendered SQL string matches expected output for each environment variable combination |
+| Destructive-change guard | Assert that no `DROP` or `ALTER COLUMN` statements appear in a rendered DDL unless explicitly flagged |
+
+**Tooling options:**
+- Python (`pytest`) for Jinja2 render tests — no cluster required
+- PySpark / Databricks Connect for idempotency and drift detection — requires a live catalog
+- DuckDB as an execution target for rendered SQL — viable if SQL is ANSI-compatible (note: some
+  Databricks DDL extensions will not work in DuckDB)
