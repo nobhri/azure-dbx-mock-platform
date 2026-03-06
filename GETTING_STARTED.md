@@ -137,7 +137,14 @@ METASTORE_ID=<your Unity Catalog metastore UUID>
 - Deploys: Unity Catalog Metastore, Workspace assignment, Storage Credential, External Location, Catalog, Schemas, Grants
 - State: `workload-tfstate/dbx.tfstate`
 
-### 5. Destroy and Recreate (optional)
+### 5. Workload — Catalog Layer
+
+- Trigger `workload-catalog.yaml`
+- Deploys: Unity Catalog catalog and schemas via Jinja2 + Python notebook (Asset Bundle)
+- **Must run after `workload-dbx` apply** — requires the External Location created in step 4
+- If the External Location is missing, the workflow fails with `EXTERNAL_LOCATION_DOES_NOT_EXIST` before the bundle even runs (see Common Pitfalls)
+
+### 6. Destroy and Recreate (optional)
 
 For the full destroy/recreate procedure, including mandatory ordering, orphaned UC object recovery,
 and required post-recreate grants, see:
@@ -171,6 +178,7 @@ and required post-recreate grants, see:
   - Unity Catalog root storage Storage Account
 - `Storage Credential 'uc-mi-credential' already exists` on workload-dbx apply → UC objects orphaned from a previous destroy (wrong order) — follow [Orphaned UC objects recovery](#orphaned-uc-objects-recovery)
 - `workload-dbx` apply fails after recreate with permission errors → re-grant `CREATE EXTERNAL LOCATION ON METASTORE` as metastore admin — see [docs/runbooks/post-destroy-grants.md](docs/runbooks/post-destroy-grants.md)
+- `workload-catalog` fails with `EXTERNAL_LOCATION_DOES_NOT_EXIST` → `workload-dbx` has not been applied yet; apply it first (step 4 must precede step 5)
 - **Do not run `terraform` from the repo root** — always use `-chdir=infra/<module>` (or let CI do it). Running terraform at the root creates a local `terraform.tfstate` in the repo root that is out of sync with the remote backend. The file is excluded by `.gitignore` but indicates an accidental manual run outside the intended module directory.
 
 ---
