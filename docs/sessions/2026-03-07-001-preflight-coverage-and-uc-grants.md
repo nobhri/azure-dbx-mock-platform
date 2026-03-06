@@ -55,33 +55,31 @@ Unity Catalog uses privilege-based visibility. Metastore admin grants management
 capability but does NOT auto-grant `USE CATALOG` or `USE SCHEMA` on catalogs owned
 by other principals. The SP is the catalog owner; the human user needs explicit grants.
 
-### Design Decision: Option B — Databricks Account Group
+### Design Decision: Entra ID Group via Native Sync (per ADR-005)
 
-**Recommendation for this portfolio platform: Databricks Account group (not SCIM)**
+**ADR-005** specifies: *"EntraID Groups are synced into Databricks via Native Sync (not SCIM provisioning)."*
 
-| Option | Approach | Verdict |
-|--------|----------|---------|
-| A — Entra ID group + SCIM sync | Full enterprise pattern; single identity source | Over-engineered for a mock platform |
-| B — Databricks Account group | Group created in Account Console; UC grants to group | **Recommended** |
-| C — Direct user grant | Grant to individual email directly | Fine for a quick test, not scalable |
+Initial advice in this session incorrectly framed the option as "SCIM sync". Native Sync is a
+different (simpler) mechanism:
 
-#### Why Option B over Option A
+| Mechanism | How it works | Setup required |
+|-----------|-------------|----------------|
+| SCIM | External Entra ID Enterprise App pushes group memberships on a schedule | SCIM app configuration |
+| **Native Sync** | Databricks reads Entra ID group memberships from the user's token at login time | **None** — automatic when user authenticates with Microsoft account |
 
-SCIM provisioning requires configuring an Entra ID Enterprise App
-("Azure Databricks SCIM Provisioning Connector"), which is meaningful infrastructure
-overhead for a demo project. Option B achieves the group-based access pattern — the
-key design principle — without SCIM complexity. If this platform scales to a production
-context, SCIM (Option A) can be layered on top of the same group structure.
+Native Sync requires no external provisioner. When a user logs into Databricks using their
+Microsoft (Entra ID) account, their Entra ID group memberships are reflected automatically.
+The group name used in UC grants must match the Entra ID group name exactly.
 
 ### Implementation Plan (tracked in issue #85)
 
-1. Databricks Account Console → Groups → Create group `platform-users`
-2. Add human user(s) to the group
+1. Create group in **Entra ID** (e.g., `databricks-platform-users`)
+2. Add human user(s) to the group in Entra ID
 3. After `workload-catalog` runs, execute as metastore admin:
 
 ```sql
-GRANT USE CATALOG ON CATALOG <catalog_name> TO `platform-users`;
-GRANT USE SCHEMA ON ALL SCHEMAS IN CATALOG <catalog_name> TO `platform-users`;
+GRANT USE CATALOG ON CATALOG <catalog_name> TO `databricks-platform-users`;
+GRANT USE SCHEMA ON ALL SCHEMAS IN CATALOG <catalog_name> TO `databricks-platform-users`;
 ```
 
 4. Update `docs/runbooks/post-destroy-grants.md` to include these grants as a step

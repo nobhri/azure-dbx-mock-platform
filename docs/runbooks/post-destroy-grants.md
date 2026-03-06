@@ -22,8 +22,9 @@ after each destroy cycle.
 
 ## Required Grants
 
-Run the following as a **human user with metastore admin role** in a Databricks SQL warehouse or
-notebook connected to the Unity Catalog metastore:
+### Step 1 — SP grants (run after workload-dbx, before workload-catalog)
+
+Run as a **human user with metastore admin role** in a Databricks SQL warehouse or notebook:
 
 ```sql
 -- Required for workload-dbx to create the External Location
@@ -35,29 +36,55 @@ GRANT CREATE CATALOG ON METASTORE TO '<SP_client_id>';
 
 Replace `<SP_client_id>` with the value of the `AZURE_CLIENT_ID` GitHub repository secret.
 
+### Step 2 — Catalog visibility grants (run after workload-catalog)
+
+Per ADR-005, permissions are granted to **Entra ID groups via Native Sync** — not to individual
+users or Databricks-only groups. When a user logs in with their Microsoft account, Entra ID group
+memberships are automatically reflected in Databricks (no SCIM provisioner required).
+
+**Prerequisite:** Create an Entra ID group (e.g., `databricks-platform-users`) and add all
+human users who need catalog access. The group name used in the grant must match exactly.
+
+```sql
+-- Allow the Entra ID group to see and use the catalog
+GRANT USE CATALOG ON CATALOG <catalog_name> TO `databricks-platform-users`;
+
+-- Allow the group to see and use all schemas in the catalog
+GRANT USE SCHEMA ON ALL SCHEMAS IN CATALOG <catalog_name> TO `databricks-platform-users`;
+```
+
+Replace `<catalog_name>` with the catalog name defined in your platform (e.g., `mock_dev`).
+
+> **Note:** These grants are on the catalog object. If the catalog is dropped and recreated
+> (e.g., after `workload-catalog` runs on a fresh environment), the grants must be re-run.
+> The catalog uses `CREATE CATALOG IF NOT EXISTS` — if the catalog already exists, it is not
+> dropped, and existing grants are preserved.
+
 ---
 
 ## When to Run
 
-Run these grants **after** `workload-dbx` apply completes successfully and **before** triggering
-`workload-catalog`. The full sequence:
-
 1. `workload-azure` apply ✅
 2. `workload-dbx` apply ✅
-3. **These grants ← you are here**
-4. `workload-catalog` apply
+3. **Step 1 grants (SP)** — run before workload-catalog
+4. `workload-catalog` apply ✅
+5. **Step 2 grants (Entra ID group)** — run after workload-catalog
 
 ---
 
 ## Verification
 
-After running grants, verify with:
-
+After Step 1 grants:
 ```sql
 SHOW GRANTS ON METASTORE;
+-- Confirm SP appears with CREATE EXTERNAL LOCATION and CREATE CATALOG
 ```
 
-Confirm `<SP_client_id>` appears with `CREATE EXTERNAL LOCATION` and `CREATE CATALOG` privileges.
+After Step 2 grants:
+```sql
+SHOW GRANTS ON CATALOG <catalog_name>;
+-- Confirm databricks-platform-users appears with USE CATALOG
+```
 
 ---
 
