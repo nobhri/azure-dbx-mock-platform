@@ -26,16 +26,10 @@ Guardrails and the tfstate backend are not touched — they persist across cycle
 2. Trigger `workload-dbx.yaml` (no destroy flag)
    - Provisions: UC Metastore, Workspace assignment, Storage Credential, External Location
    - **Must complete before workload-catalog** — External Location created here is required by catalog
-3. **Update `METASTORE_ID` GitHub secret** — copy the new UUID from the `metastore_id` output in the CI Apply logs
-   - GitHub → Settings → Secrets and variables → Actions → `METASTORE_ID`
-   - A fresh metastore is created on every recreate; the UUID always changes
-   - **Pitfall:** The Databricks Account Console metastore detail URL looks like:
-     `https://accounts.azuredatabricks.net/data/<METASTORE_ID>/configurations?account_id=<ACCOUNT_ID>`
-     The **Metastore ID** is the path segment (before `/configurations`).
-     The `account_id` query parameter is the **Databricks Account ID** — a different value.
-     Copying the wrong one is a common mistake that causes `Cannot import non-existent remote object`.
-4. Run post-destroy grants — see [post-destroy-grants.md](./post-destroy-grants.md)
-5. Trigger `workload-catalog` — creates Catalog and Schemas via Jinja2 + SQL notebook
+   - The CI workflow auto-discovers and imports the metastore if one already exists in the account
+     (handles failed-destroy recovery). No manual UUID management required.
+3. Run post-destroy grants — see [post-destroy-grants.md](./post-destroy-grants.md)
+4. Trigger `workload-catalog` — creates Catalog and Schemas via Jinja2 + SQL notebook
 
 ---
 
@@ -63,7 +57,6 @@ Error: cannot create storage credential: Storage Credential 'uc-mi-credential' a
   destroyed in this cycle — they persist and remain valid after recreate.
 - The Metastore is destroyed by a successful `workload-dbx` destroy (`force_destroy = true` ensures
   notebook-created catalogs are cascade-deleted). If a destroy run fails mid-way, the metastore may
-  survive — the import block in Terraform handles re-importing it on the next apply.
-- After recreate, the `METASTORE_ID` GitHub secret **must** be updated with the UUID from the
-  `workload-dbx` Apply output (`metastore_id` output). The UUID changes when a new metastore is
-  created, but stays the same if the previous one was imported (survived a failed destroy).
+  survive — the CI workflow detects this and auto-imports it on the next apply via the Databricks
+  Account REST API (no manual UUID tracking required).
+- The `METASTORE_ID` GitHub secret is no longer used and can be removed.
