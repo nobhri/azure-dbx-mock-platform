@@ -137,51 +137,16 @@ METASTORE_ID=<your Unity Catalog metastore UUID>
 - Deploys: Unity Catalog Metastore, Workspace assignment, Storage Credential, External Location, Catalog, Schemas, Grants
 - State: `workload-tfstate/dbx.tfstate`
 
-### 5. Destroy (optional)
+### 5. Destroy and Recreate (optional)
 
-> **Order is mandatory.** Destroying in the wrong order orphans Unity Catalog objects in the Metastore and breaks the next apply. See [Orphaned UC objects recovery](#orphaned-uc-objects-recovery) if this has already happened.
+For the full destroy/recreate procedure, including mandatory ordering, orphaned UC object recovery,
+and required post-recreate grants, see:
 
-**Destroy order (reverse dependency):**
+- [docs/runbooks/destroy-recreate.md](docs/runbooks/destroy-recreate.md)
+- [docs/runbooks/post-destroy-grants.md](docs/runbooks/post-destroy-grants.md)
 
-1. Trigger `workload-dbx.yaml` with `destroy=true` — removes UC Metastore, Storage Credential, External Location
-2. Trigger `workload-azure.yaml` with `destroy=true` — removes Databricks Workspace, ADLS, Access Connector, Resource Group
-
-Guardrails and the tfstate backend remain intact across destroy/recreate cycles.
-
-**Recreate order:**
-
-1. Trigger `workload-azure.yaml` (no destroy flag) — provisions Azure layer
-2. Trigger `workload-dbx.yaml` (no destroy flag) — provisions Databricks layer
-3. **Manual step — re-grant CREATE EXTERNAL LOCATION** (see below)
-
-**Why a manual grant after recreate?**
-
-After each full destroy/recreate cycle, the Service Principal must be re-granted `CREATE EXTERNAL LOCATION` on the Metastore. This cannot be automated because only the human metastore admin can execute the grant — the SP cannot self-grant UC privileges.
-
-Run the following as a human user (metastore admin) in a Databricks notebook or SQL warehouse:
-
-```sql
-GRANT CREATE EXTERNAL LOCATION ON METASTORE TO '<SP_client_id>';
-```
-
-Replace `<SP_client_id>` with the value of the `AZURE_CLIENT_ID` GitHub Secret.
-
----
-
-### Orphaned UC objects recovery
-
-If `workload-azure` was destroyed before `workload-dbx` (wrong order), the Unity Catalog Metastore survives but its objects (`uc-mi-credential`, `uc-root-location`) are no longer tracked in Terraform state. The next `workload-dbx` apply will fail with:
-
-```
-Error: cannot create storage credential: Storage Credential 'uc-mi-credential' already exists
-```
-
-**Recovery steps:**
-
-1. In **Databricks Account Console** → Unity Catalog → External Locations → delete `uc-root-location`
-2. In **Databricks Account Console** → Unity Catalog → Storage Credentials → delete `uc-mi-credential`
-3. Trigger `workload-dbx.yaml` (no destroy flag) — apply will now succeed
-4. Re-grant `CREATE EXTERNAL LOCATION` as described above
+> **Order is mandatory.** Destroying in the wrong order orphans Unity Catalog objects in the
+> Metastore. Always destroy `workload-dbx` before `workload-azure`.
 
 ---
 
@@ -205,7 +170,7 @@ Error: cannot create storage credential: Storage Credential 'uc-mi-credential' a
   - Terraform state backend Storage Account
   - Unity Catalog root storage Storage Account
 - `Storage Credential 'uc-mi-credential' already exists` on workload-dbx apply → UC objects orphaned from a previous destroy (wrong order) — follow [Orphaned UC objects recovery](#orphaned-uc-objects-recovery)
-- `workload-dbx` apply fails after recreate with permission errors → re-grant `CREATE EXTERNAL LOCATION ON METASTORE` as metastore admin (see step 5 above)
+- `workload-dbx` apply fails after recreate with permission errors → re-grant `CREATE EXTERNAL LOCATION ON METASTORE` as metastore admin — see [docs/runbooks/post-destroy-grants.md](docs/runbooks/post-destroy-grants.md)
 - **Do not run `terraform` from the repo root** — always use `-chdir=infra/<module>` (or let CI do it). Running terraform at the root creates a local `terraform.tfstate` in the repo root that is out of sync with the remote backend. The file is excluded by `.gitignore` but indicates an accidental manual run outside the intended module directory.
 
 ---
