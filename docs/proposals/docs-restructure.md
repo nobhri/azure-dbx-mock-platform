@@ -1,6 +1,6 @@
 # Proposal: docs/ Directory Restructure
 
-**Status:** Draft — pending human review
+**Status:** Accepted — implemented in PR #71
 **Date:** 2026-03-06
 **Author:** Claude Code (session docs/code-review-2026-03-06-update)
 

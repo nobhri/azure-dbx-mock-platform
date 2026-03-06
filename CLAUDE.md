@@ -40,6 +40,16 @@ Azure, Terraform, Databricks, Asset Bundles, Unity Catalog, Jinja2, GitHub Actio
 - Use variable names as placeholders, never actual values
 
 ## Key Design Decisions
-- See README ADR sections for rationale
+- See `docs/adr/` for full ADR rationale; README has 2-3 sentence summaries with links
 - Do not move Catalog/Schema management back to Terraform
 - Prod execution: CI/CD only, no manual runs
+
+## Session Lifecycle
+- At session start: read `docs/status.md` before running any `gh` commands
+- At session end: update `docs/status.md` if any issues were opened, closed, or changed severity
+
+## Session File Naming
+- Session notes go in `docs/sessions/YYYY-MM-DD-NNN-slug.md`
+- NNN is a zero-padded 3-digit sequence (001, 002, ...)
+- Determine next NNN by globbing `docs/sessions/YYYY-MM-DD-*.md` at session start; start at 001 if none exist
+- Example: `docs/sessions/2026-03-07-001-oidc-fix.md`

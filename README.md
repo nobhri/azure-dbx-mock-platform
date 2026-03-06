@@ -138,78 +138,63 @@ The VS Code Databricks extension enables deployment into a personal developer na
 
 ## Architecture Decision Records (ADR)
 
+Each ADR explains a key design choice, what was rejected, and why. Full rationale is in
+[`docs/adr/`](docs/adr/).
+
 ### ADR-001: Terraform for Infra/Metastore, SQL for Catalog/Schema
 
-**Context:** Unity Catalog resources can be managed via Terraform or SQL. Which to use where?
+Terraform owns Azure resources and the UC Metastore; Catalog and Schema are managed via
+Jinja2-parametrized SQL notebooks owned by the Data Platform team. This boundary separates
+infrastructure (slow-changing, infra team) from governance objects (frequently changing, data team),
+eliminating the bottleneck of requiring infra involvement for schema changes. The trade-off is that
+SQL-managed catalog has no Terraform drift detection, mitigated by idempotent DDL.
 
-**Decision:**
-
-|Resource        |Tool             |Reason                                                  |
-|----------------|-----------------|--------------------------------------------------------|
-|Azure Resources |Terraform        |Network + security belong to infra team                 |
-|Metastore       |Terraform        |One-time setup; state management critical               |
-|Catalog / Schema|Jinja2 + SQL     |Data engineers can own it; no Terraform expertise needed|
-|Tables          |SQL DDL (planned)|Data layer ownership stays with data team               |
-
-**Trade-offs accepted:**
-
-- SQL-managed catalog has no drift detection out of the box (mitigated by idempotent DDL + system table audit)
-- Terraform state for Metastore must be carefully protected (separate backend)
-
-**Rejected alternatives:**
-
-- Full Terraform for everything → requires infra team involvement for every schema change (bottleneck)
-- Asset Bundles for catalog → lifecycle mismatch; bundles are for jobs, not governance objects
+See [ADR-001](docs/adr/001-terraform-scope.md) for full rationale.
 
 -----
 
-### ADR-002: OIDC Authentication Only
+### ADR-002: OIDC Authentication Only — No Stored Secrets
 
-**Decision:** No stored secrets or service principal credentials in GitHub Actions. All Azure authentication uses OIDC federated identity.
+No stored secrets or service principal client secrets are used in GitHub Actions — all Azure
+authentication uses OIDC federated identity. OIDC has no secret to leak, rotate, or forget; scope
+is limited to the specific workflow and branch. This eliminates an entire class of
+credential-management incidents at the cost of a one-time setup in Entra ID.
 
-**Reason:** Secrets rotate, leak, and get forgotten. OIDC has no secret to manage, integrates natively with Azure Entra ID, and scope is limited to the specific workflow and branch.
+See [ADR-002](docs/adr/002-oidc-auth.md) for full rationale.
 
 -----
 
 ### ADR-003: Idempotency as a First-Class Requirement
 
-**Decision:** All DDL and DML operations must be idempotent. `CREATE IF NOT EXISTS`, `MERGE`, `mode("overwrite")` with explicit schema handling — no implicit assumptions about environment state.
+All DDL and DML operations must be idempotent by construction: `CREATE IF NOT EXISTS`, `MERGE`,
+`mode("overwrite")` with explicit schema handling — no implicit assumptions about environment state.
+This ensures that re-running a failed CI/CD job is always safe, with no manual cleanup required.
+Idempotency is treated as a correctness property, not an optimization.
 
-**Reason:** Re-running a failed job should always be safe. This is especially important in a CI/CD pipeline where retry logic is automated.
+See [ADR-003](docs/adr/003-idempotency.md) for full rationale.
 
 -----
 
-### ADR-004: Data Consumer Workspace — Access Pattern Options
+### ADR-004: Data Consumer Workspace — View Layer Access Pattern
 
-**Context:** Data consumers need access to production data but should not operate in the platform prod workspace. How to expose data to them?
+Data consumers are isolated from the platform prod workspace via a View layer in a dedicated
+consumer catalog — a clean abstraction boundary without the cost overhead of Materialized Views.
+Direct prod catalog access and full Materialized View isolation remain available depending on
+governance requirements of each dataset. Materialized Views are intentionally avoided as the default
+due to compute cost.
 
-**Options considered:**
-
-|Pattern                                    |Lineage visibility   |Cost                      |Complexity|
-|-------------------------------------------|---------------------|--------------------------|----------|
-|Direct access to prod catalog              |Full                 |Low                       |Low       |
-|View layer in consumer catalog             |Partial (abstracted) |Low                       |Medium    |
-|Materialized View layer in consumer catalog|None (fully isolated)|High (compute for refresh)|High      |
-
-**Decision:** Default to **View layer in consumer catalog** — provides a clean abstraction boundary without the cost overhead of Materialized Views. Direct prod catalog access or full Materialized View isolation are available depending on governance requirements of each dataset.
-
-**Trade-offs accepted:**
-
-- View layer adds a maintenance surface (views must be updated when upstream schema changes)
-- Materialized Views are intentionally avoided as default due to cost — reserved for cases where query performance or strict lineage isolation is explicitly required
+See [ADR-004](docs/adr/004-consumer-access.md) for full rationale.
 
 -----
 
 ### ADR-005: Identity & Permission Model — Group-Based Access via EntraID Sync
 
-**Decision:** Permissions are assigned to **EntraID Groups only — never to individual users**. All Workspace and Catalog permissions are granted to groups via Terraform. No `GRANT` to individual user principals anywhere in the platform.
+Permissions are assigned to EntraID Groups only — never to individual users — with all Workspace
+and Catalog grants managed via Terraform. Group-based assignment ensures access is managed through a
+single source of truth (EntraID) and offboarding propagates automatically. EntraID Native Sync is
+preferred over SCIM for its support of nested groups and lower setup complexity.
 
-**Reason:** Individual permission grants create drift that is nearly impossible to audit at scale. Group-based assignment ensures access is managed through a single source of truth (EntraID) and offboarding propagates automatically.
-
-**Implementation notes:**
-
-- EntraID Native Sync is preferred over SCIM provisioning (supports nested groups, lower setup complexity)
-- Group-to-workspace and group-to-catalog assignments are parametrized in Terraform — adding a new workspace requires only a parameter change
+See [ADR-005](docs/adr/005-group-permissions.md) for full rationale.
 
 -----
 
