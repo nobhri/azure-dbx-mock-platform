@@ -14,6 +14,7 @@ opened, closed, or changed severity during the session.
 | [#53](https://github.com/nobhri/azure-dbx-mock-platform/issues/53) | LOW | Document GRANT CREATE CATALOG prerequisite | Update GETTING_STARTED.md and post-destroy-grants runbook. Partially addressed by `docs/runbooks/post-destroy-grants.md`. |
 | [#84](https://github.com/nobhri/azure-dbx-mock-platform/issues/84) | HIGH | Preflight fix commit not merged into main — old buggy code still active | Fix pushed after PR #79 merged; dangling commit. PR #84 re-applies the fix. |
 | [#85](https://github.com/nobhri/azure-dbx-mock-platform/issues/85) | MEDIUM | UC catalog/schema not visible to human user — missing USE CATALOG/USE SCHEMA grants | Groups + grants now automated via platform-layer-rewrite PR. Remaining: human must join `data_platform_admins` group via CLI or GUI after workload-catalog runs. |
+| [#91](https://github.com/nobhri/azure-dbx-mock-platform/issues/91) | HIGH | workload-catalog fails: ModuleNotFoundError: No module named 'yaml' | DBR 14.3.x non-ML lacks PyYAML. Fix: add PyPI library to databricks.yml. PR #92 pending review. |
 | [#82](https://github.com/nobhri/azure-dbx-mock-platform/issues/82) | LOW | Test coverage gap: dynamic metastore import path not exercised in CI | Branch 3 ("Found existing metastore — importing") never triggered. Requires manual `terraform state rm` to test. See session-008 for procedure. |
 
 ---
