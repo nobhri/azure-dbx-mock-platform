@@ -113,27 +113,37 @@ render_and_execute("create_schema.sql.j2", {
 
 # COMMAND ----------
 
-# Step 3: CREATE GROUPS via Databricks SDK
+# Step 3: CREATE GROUPS via SCIM REST API
 # CREATE GROUP is not a SQL statement -- groups are managed via the REST API.
-# databricks-sdk is pre-installed on DBR 14.3.x.
-# WorkspaceClient() auto-auth does not work on job clusters; pass host+token
-# explicitly from the notebook context (standard pattern for notebook clusters).
-# Idempotent: existing groups are skipped.
-from databricks.sdk import WorkspaceClient
+# Using requests (pre-installed on all DBR versions) instead of databricks-sdk
+# to avoid SDK version incompatibilities across DBR releases.
+# Idempotent: list existing groups first, skip any that already exist.
+import requests
 
 _ctx = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
-w = WorkspaceClient(
-    host=_ctx.apiUrl().get(),
-    token=_ctx.apiToken().get(),
-)
-existing_group_names = {g.display_name for g in w.groups.list()}
+_host = _ctx.apiUrl().get()
+_token = _ctx.apiToken().get()
+_headers = {"Authorization": f"Bearer {_token}", "Content-Type": "application/json"}
+_scim_base = f"{_host}/api/2.0/preview/scim/v2/Groups"
+
+_resp = requests.get(_scim_base, headers=_headers)
+_resp.raise_for_status()
+existing_group_names = {g["displayName"] for g in _resp.json().get("Resources", [])}
 
 for group in groups_config["groups"]:
     name = group["name"]
     if name in existing_group_names:
         print(f"Group already exists (skip): {name}")
     else:
-        w.groups.create(display_name=name)
+        _r = requests.post(
+            _scim_base,
+            headers=_headers,
+            json={
+                "schemas": ["urn:ietf:params:scim:schemas:core:2.0:Group"],
+                "displayName": name,
+            },
+        )
+        _r.raise_for_status()
         print(f"Created group: {name}")
 
 # COMMAND ----------
