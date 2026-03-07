@@ -1,6 +1,6 @@
 # Project Status Snapshot
 
-**Last updated:** 2026-03-06
+**Last updated:** 2026-03-07
 **Update instructions:** Edit this file at the end of each docs PR. Update any issue that was
 opened, closed, or changed severity during the session.
 
@@ -13,8 +13,7 @@ opened, closed, or changed severity during the session.
 | [#40](https://github.com/nobhri/azure-dbx-mock-platform/issues/40) | MEDIUM | OIDC not configured for pull_request subject | PR CI always fails Azure login. Fix: add `pull_request` federated credential in Entra ID. No code change needed. |
 | [#53](https://github.com/nobhri/azure-dbx-mock-platform/issues/53) | LOW | Document GRANT CREATE CATALOG prerequisite | Update GETTING_STARTED.md and post-destroy-grants runbook. Partially addressed by `docs/runbooks/post-destroy-grants.md`. |
 | [#84](https://github.com/nobhri/azure-dbx-mock-platform/issues/84) | HIGH | Preflight fix commit not merged into main — old buggy code still active | Fix pushed after PR #79 merged; dangling commit. PR #84 re-applies the fix. |
-| [#87](https://github.com/nobhri/azure-dbx-mock-platform/issues/87) | MEDIUM | ADR conflict: catalog grants not assignable to Terraform when catalog is Jinja2-managed | ADR-001 assigns catalog to Jinja2; ADR-005 assigns all grants to Terraform. Options: A (amend ADR-005, grants in Jinja2), B (amend ADR-001, grants in Terraform with ordering dep), C (new ADR-006). Needs decision. |
-| [#85](https://github.com/nobhri/azure-dbx-mock-platform/issues/85) | MEDIUM | UC catalog/schema not visible to human user — missing USE CATALOG/USE SCHEMA grants | Per ADR-005: Entra ID group via Native Sync. Runbook updated. Pending: create Entra ID group + run grants. Blocked by #87. |
+| [#85](https://github.com/nobhri/azure-dbx-mock-platform/issues/85) | MEDIUM | UC catalog/schema not visible to human user — missing USE CATALOG/USE SCHEMA grants | Per ADR-005 (updated): grants in Platform Layer (SQL). Runbook updated. Pending: create Databricks-native group + run grants. No longer blocked. |
 | [#82](https://github.com/nobhri/azure-dbx-mock-platform/issues/82) | LOW | Test coverage gap: dynamic metastore import path not exercised in CI | Branch 3 ("Found existing metastore — importing") never triggered. Requires manual `terraform state rm` to test. See session-008 for procedure. |
 
 ---
@@ -36,6 +35,7 @@ These require direct human action in Azure, GitHub, or Databricks — cannot be 
 
 | Issue | Title | Closed by |
 |-------|-------|-----------|
+| [#87](https://github.com/nobhri/azure-dbx-mock-platform/issues/87) | ADR conflict: catalog grants not assignable to Terraform when catalog is Jinja2-managed | ADR-005 updated — Option A: all Metastore-scoped grants moved to Platform Layer (SQL/Jinja2) |
 | [#80](https://github.com/nobhri/azure-dbx-mock-platform/issues/80) | workload-dbx apply fails after successful destroy: static import block uses stale METASTORE_ID | PR #81 — dynamic metastore discovery step; METASTORE_ID secret removed |
 | [#68](https://github.com/nobhri/azure-dbx-mock-platform/issues/68) | workload-catalog fails when workload-dbx external location not present | PR #78 — preflight check added to workflow; GETTING_STARTED.md updated |
 | [#64](https://github.com/nobhri/azure-dbx-mock-platform/issues/64) | METASTORE_ID secret had wrong UUID (account ID copied instead of metastore ID) | PRs #72 #74 #75 — import block restored; correct UUID set; apply succeeded |

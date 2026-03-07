@@ -43,7 +43,7 @@ The design intentionally reflects a common scenario: **a low-to-mid maturity org
 │                                                              │
 │  EntraID Groups ──sync──→ Databricks                         │
 │  Permissions assigned to Groups only — never to individuals  │
-│  Group → Workspace/Catalog assignment: Terraform             │
+│  Group → Workspace/Catalog assignment: Platform Layer (SQL)  │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -61,9 +61,9 @@ The design intentionally reflects a common scenario: **a low-to-mid maturity org
 │  Terraform — one-time setup only                     │
 │  (Metastore creation, Storage credential binding)    │
 ├──────────────────────────────────────────────────────┤
-│  Catalog / Schema Layer                              │
+│  Catalog / Schema / Permission Layer                 │
 │  Jinja2 + Python Notebook — Data Platform team       │
-│  (Environment-parametrized SQL, run via CI/CD)       │
+│  (DDL + GRANT, config-driven, run via CI/CD)         │
 ├──────────────────────────────────────────────────────┤
 │  Job / Workflow Layer                                │
 │  Asset Bundles — Data Engineering team               │
@@ -189,9 +189,11 @@ See [ADR-004](docs/adr/004-consumer-access.md) for full rationale.
 
 ### ADR-005: Identity & Permission Model — Group-Based Access via EntraID Sync
 
-Permissions are assigned to EntraID Groups only — never to individual users — with all Workspace
-and Catalog grants managed via Terraform. Group-based assignment ensures access is managed through a
-single source of truth (EntraID) and offboarding propagates automatically. EntraID Native Sync is
+Permissions are assigned to Groups only — never to individual users. All Metastore-scoped grants
+(Workspace, Catalog, Schema) are managed via Jinja2 + SQL Notebook in the Platform Layer.
+Group-based assignment ensures access is managed through a single source of truth and offboarding
+propagates automatically. In production, groups are sourced from EntraID via Native Sync; in this
+mock environment, Databricks-native groups are used as a simplification. EntraID Native Sync is
 preferred over SCIM for its support of nested groups and lower setup complexity.
 
 See [ADR-005](docs/adr/005-group-permissions.md) for full rationale.
