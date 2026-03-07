@@ -36,29 +36,40 @@ GRANT CREATE CATALOG ON METASTORE TO '<SP_client_id>';
 
 Replace `<SP_client_id>` with the value of the `AZURE_CLIENT_ID` GitHub repository secret.
 
-### Step 2 — Catalog visibility grants (run after workload-catalog)
+### Step 2 — Create account-level groups (one-time, before or after workload-catalog)
 
-Per ADR-005, permissions are granted to **Entra ID groups via Native Sync** — not to individual
-users or Databricks-only groups. When a user logs in with their Microsoft account, Entra ID group
-memberships are automatically reflected in Databricks (no SCIM provisioner required).
+Unity Catalog `GRANT` statements target **account-level groups only** — workspace-local groups
+(created via the workspace SCIM API) are not visible to UC. Groups must exist at the Databricks
+account level before GRANTs can be applied.
 
-**Prerequisite:** Create an Entra ID group (e.g., `databricks-platform-users`) and add all
-human users who need catalog access. The group name used in the grant must match exactly.
+In this mock environment, Databricks-native groups are used (ADR-005: Mock Environment
+Simplification). Create the three groups via **Account Console** or **Databricks CLI with an
+account-level profile**:
 
-```sql
--- Allow the Entra ID group to see and use the catalog
-GRANT USE CATALOG ON CATALOG <catalog_name> TO `databricks-platform-users`;
+**Account Console:**
+Databricks Account Console → User Management → Groups → Add Group
 
--- Allow the group to see and use all schemas in the catalog
-GRANT USE SCHEMA ON ALL SCHEMAS IN CATALOG <catalog_name> TO `databricks-platform-users`;
+Groups to create:
+- `data_platform_admins`
+- `data_engineers`
+- `data_consumers`
+
+**Databricks CLI (account-level profile required):**
+```bash
+databricks groups create --display-name data_platform_admins --profile <account-profile>
+databricks groups create --display-name data_engineers --profile <account-profile>
+databricks groups create --display-name data_consumers --profile <account-profile>
 ```
 
-Replace `<catalog_name>` with the catalog name defined in your platform (e.g., `mock_dev`).
+> **Note:** The `workload-catalog` job (Step 4) attempts all GRANTs and emits a `WARNING` for
+> any group that does not exist yet — it does **not** fail. Re-run `workload-catalog` after
+> creating the groups to apply the deferred grants (all GRANT statements are idempotent).
 
-> **Note:** These grants are on the catalog object. If the catalog is dropped and recreated
-> (e.g., after `workload-catalog` runs on a fresh environment), the grants must be re-run.
-> The catalog uses `CREATE CATALOG IF NOT EXISTS` — if the catalog already exists, it is not
-> dropped, and existing grants are preserved.
+**Add yourself to `data_platform_admins`** so you can see the catalog in the Databricks UI:
+```bash
+databricks groups add-member --group-name data_platform_admins --user-name <your-email> \
+  --profile <account-profile>
+```
 
 ---
 
@@ -67,8 +78,8 @@ Replace `<catalog_name>` with the catalog name defined in your platform (e.g., `
 1. `workload-azure` apply ✅
 2. `workload-dbx` apply ✅
 3. **Step 1 grants (SP)** — run before workload-catalog
-4. `workload-catalog` apply ✅
-5. **Step 2 grants (Entra ID group)** — run after workload-catalog
+4. **Step 2 groups (account-level)** — create before or after workload-catalog; re-run catalog job after creation
+5. `workload-catalog` apply ✅ (GRANTs for missing groups emit WARNING, not error; re-run to apply)
 
 ---
 

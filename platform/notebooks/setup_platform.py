@@ -50,8 +50,14 @@ def load_yaml(filename):
         return yaml.safe_load(f)
 
 
-def render_and_execute(template_file, template_vars):
-    """Read a Jinja2 template, render it, and execute each SQL statement."""
+def render_and_execute(template_file, template_vars, warn_on_principal_missing=False):
+    """Read a Jinja2 template, render it, and execute each SQL statement.
+
+    If warn_on_principal_missing=True, statements that fail with
+    PRINCIPAL_DOES_NOT_EXIST emit a warning and continue rather than raising.
+    This is used for GRANT statements targeting groups that may not yet
+    exist as account-level principals in Unity Catalog.
+    """
     path = f"{templates_dir}/{template_file}"
     print(f"\n{'=' * 60}")
     print(f"Processing: {template_file}")
@@ -72,7 +78,15 @@ def render_and_execute(template_file, template_vars):
 
     for stmt in statements:
         print(f"\nExecuting:\n{stmt}\n")
-        spark.sql(stmt)
+        try:
+            spark.sql(stmt)
+        except Exception as e:
+            if warn_on_principal_missing and "PRINCIPAL_DOES_NOT_EXIST" in str(e):
+                print(f"WARNING: principal not found -- skipping grant.\n"
+                      f"  Create the group as an account-level group first.\n"
+                      f"  Details: {e}\n")
+            else:
+                raise
 
 # COMMAND ----------
 
@@ -113,48 +127,35 @@ render_and_execute("create_schema.sql.j2", {
 
 # COMMAND ----------
 
-# Step 3: CREATE GROUPS via SCIM REST API
-# CREATE GROUP is not a SQL statement -- groups are managed via the REST API.
-# Using requests (pre-installed on all DBR versions) instead of databricks-sdk
-# to avoid SDK version incompatibilities across DBR releases.
-# Idempotent: list existing groups first, skip any that already exist.
-import requests
-
-_ctx = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
-_host = _ctx.apiUrl().get()
-_token = _ctx.apiToken().get()
-_headers = {"Authorization": f"Bearer {_token}", "Content-Type": "application/json"}
-_scim_base = f"{_host}/api/2.0/preview/scim/v2/Groups"
-
-_resp = requests.get(_scim_base, headers=_headers)
-_resp.raise_for_status()
-existing_group_names = {g["displayName"] for g in _resp.json().get("Resources", [])}
-
+# Step 3: Group prerequisite notice
+# Unity Catalog GRANT requires account-level groups, not workspace-local groups.
+# Workspace SCIM groups (created via /api/2.0/preview/scim/v2/Groups) are NOT
+# visible to UC GRANT -- they live in a different scope.
+# Account-level groups must be created manually via:
+#   - Databricks Account Console > Groups
+#   - Databricks CLI: databricks groups create --profile <account-profile>
+# This is the same pattern as SP grants (post-destroy-grants.md runbook).
+# Group names expected by the GRANT step:
 for group in groups_config["groups"]:
-    name = group["name"]
-    if name in existing_group_names:
-        print(f"Group already exists (skip): {name}")
-    else:
-        _r = requests.post(
-            _scim_base,
-            headers=_headers,
-            json={
-                "schemas": ["urn:ietf:params:scim:schemas:core:2.0:Group"],
-                "displayName": name,
-            },
-        )
-        _r.raise_for_status()
-        print(f"Created group: {name}")
+    print(f"  Required account-level group: {group['name']}")
+print("\nIf any groups above do not exist at the account level, the GRANT step")
+print("below will skip those grants with a WARNING (not an error).")
+print("Re-run workload-catalog after creating the groups to apply all grants.")
 
 # COMMAND ----------
 
 # Step 4: GRANT PERMISSIONS
+# warn_on_principal_missing=True: skips grants for groups not yet created at
+# the account level. The job succeeds with a warning; re-run after group creation
+# to apply the skipped grants (all GRANT statements are idempotent).
 render_and_execute("grant_permissions.sql.j2", {
     "catalog": catalog,
     "catalog_grants": grants_config["catalog_grants"],
     "schema_grants": grants_config["schema_grants"],
-})
+}, warn_on_principal_missing=True)
 
 # COMMAND ----------
 
-print("Done -- all catalog, schema, group, and grant objects are in place.")
+print("Done -- catalog and schema objects are in place.")
+print("If WARNING lines appeared above, create the missing account-level groups")
+print("and re-run workload-catalog to apply the deferred grants.")
