@@ -3,16 +3,10 @@ on:
   push:
     branches: [ "main" ]
     paths: [ "platform/**" ]
-  workflow_dispatch:
-    inputs:
-      target:
-        description: "Bundle target to deploy (dev|staging)"
-        type: choice
-        options: [ "dev", "staging" ]
-        default: dev
+  workflow_dispatch: {}
 
 concurrency:
-  group: catalog-${{ github.event_name == 'workflow_dispatch' && inputs.target || 'prod' }}
+  group: catalog-${{ github.event_name == 'push' && 'prod' || 'dev' }}
   cancel-in-progress: true
 
 permissions:
@@ -74,7 +68,7 @@ jobs:
           if [ "${{ github.event_name }}" = "push" ]; then
             echo "TARGET=prod" >> $GITHUB_OUTPUT
           else
-            echo "TARGET=${{ inputs.target }}" >> $GITHUB_OUTPUT
+            echo "TARGET=dev" >> $GITHUB_OUTPUT
           fi
 
       - name: Preflight — verify UC external location exists
@@ -103,10 +97,10 @@ jobs:
             --var "storage_account_name=${{ steps.azout.outputs.STORAGE_ACCOUNT_NAME }}" \
             --var "uc_root_container=${{ steps.azout.outputs.UC_ROOT_CONTAINER }}"
 
-      - name: Bundle run — setup_catalog_schema
+      - name: Bundle run — setup_platform
         working-directory: platform
         run: |
-          databricks bundle run setup_catalog_schema \
+          databricks bundle run setup_platform \
             --target ${{ steps.target.outputs.TARGET }} \
             --var "storage_account_name=${{ steps.azout.outputs.STORAGE_ACCOUNT_NAME }}" \
             --var "uc_root_container=${{ steps.azout.outputs.UC_ROOT_CONTAINER }}" \
