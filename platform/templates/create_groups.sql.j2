@@ -1,6 +1,0 @@
--- ADR-005: Group-based access control -- groups only, never individual users
--- ADR-003: Idempotent by construction
-
-{% for group in groups %}
-CREATE GROUP IF NOT EXISTS `{{ group.name }}`;
-{% endfor %}
