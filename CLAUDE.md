@@ -17,7 +17,9 @@ Azure, Terraform, Databricks, Asset Bundles, Unity Catalog, Jinja2, GitHub Actio
 - Always create a new branch before making any changes
 - Never commit directly to main
 - Always create PR to main, never push to main directly
-- Use git worktrees (`.claude/worktrees/<branch-name>`) for parallel sessions (e.g. tmux with multiple Claude Code terminals)
+- Always work inside a git worktree, never in the main working tree
+- At session start, create a worktree before touching any files:
+    `git worktree add .claude/worktrees/<branch-name> -b <branch-name>`
 - Each worktree gets its own branch; all worktrees target main via PR
 
 ## Autonomy Level
@@ -45,6 +47,7 @@ Azure, Terraform, Databricks, Asset Bundles, Unity Catalog, Jinja2, GitHub Actio
 - Prod execution: CI/CD only, no manual runs
 
 ## Session Lifecycle
+- At session start: create worktree (see Git section) before editing any files
 - At session start: read `docs/status.md` before running any `gh` commands
 - At session end: update `docs/status.md` if any issues were opened, closed, or changed severity
 
