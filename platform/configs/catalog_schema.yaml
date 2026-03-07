@@ -1,0 +1,12 @@
+catalog:
+  name: mock
+  comment: "Mock data platform catalog"
+  # MANAGED LOCATION is passed via Notebook widget at runtime (from Terraform output)
+
+schemas:
+  - name: bronze
+    comment: "Raw ingested data"
+  - name: silver
+    comment: "Cleaned and validated data"
+  - name: gold
+    comment: "Business-ready aggregations"

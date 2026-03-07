@@ -1,0 +1,14 @@
+-- ADR-005: Schema-level GRANT -- group-based, declarative
+-- ADR-003: GRANT re-execution is safe (idempotent per Databricks specification)
+
+-- Catalog-level grants
+{% for grant in catalog_grants %}
+GRANT {{ grant.privileges | join(', ') }} ON CATALOG `{{ catalog.name }}` TO `{{ grant.group }}`;
+{% endfor %}
+
+-- Schema-level grants
+{% for schema_name, grants in schema_grants.items() %}
+{% for grant in grants %}
+GRANT {{ grant.privileges | join(', ') }} ON SCHEMA `{{ catalog.name }}`.`{{ schema_name }}` TO `{{ grant.group }}`;
+{% endfor %}
+{% endfor %}

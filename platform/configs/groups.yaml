@@ -1,0 +1,10 @@
+# ADR-005: Group structure is declared here and managed via CI/CD.
+# Group MEMBERSHIP (who belongs to each group) is managed outside this repo:
+#   - Mock: Databricks CLI or Account Console GUI
+#   - Production: EntraID (Native Sync propagates membership to Databricks)
+# Email addresses are not committed here (public repository).
+
+groups:
+  - name: data_platform_admins
+  - name: data_engineers
+  - name: data_consumers

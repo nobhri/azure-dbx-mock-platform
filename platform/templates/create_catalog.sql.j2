@@ -1,0 +1,6 @@
+-- ADR-001: Catalog is managed in Platform Layer, NOT Terraform
+-- ADR-003: Idempotent by construction
+
+CREATE CATALOG IF NOT EXISTS {{ catalog.name }}
+  MANAGED LOCATION '{{ managed_location }}'
+  COMMENT '{{ catalog.comment }}';

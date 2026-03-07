@@ -2,9 +2,6 @@ bundle:
   name: mock-platform-catalog
 
 variables:
-  catalog_env:
-    description: "Target environment (dev|staging|prod)"
-    default: dev
   storage_account_name:
     description: "ADLS Gen2 storage account name (from workload-azure TF output)"
     default: ""
@@ -15,28 +12,19 @@ variables:
 targets:
   dev:
     mode: development
-    variables:
-      catalog_env: dev
-  staging:
-    mode: development
-    variables:
-      catalog_env: staging
   prod:
     mode: production
-    variables:
-      catalog_env: prod
 
 resources:
   jobs:
-    setup_catalog_schema:
-      name: "setup_catalog_schema [${var.catalog_env}]"
+    setup_platform:
+      name: "setup_platform"
       tasks:
-        - task_key: ddl
+        - task_key: platform_ddl_and_grants
           notebook_task:
-            notebook_path: ./notebooks/00_setup_catalog_schema.py
+            notebook_path: ./notebooks/setup_platform.py
             source: WORKSPACE
             base_parameters:
-              env: "${var.catalog_env}"
               storage_account_name: "${var.storage_account_name}"
               uc_root_container: "${var.uc_root_container}"
           new_cluster:

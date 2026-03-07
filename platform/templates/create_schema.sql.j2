@@ -1,0 +1,7 @@
+-- ADR-001: Schema is managed in Platform Layer, NOT Terraform
+-- ADR-003: Idempotent by construction
+
+{% for schema in schemas %}
+CREATE SCHEMA IF NOT EXISTS {{ catalog.name }}.{{ schema.name }}
+  COMMENT '{{ schema.comment }}';
+{% endfor %}

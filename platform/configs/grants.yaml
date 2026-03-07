@@ -1,0 +1,36 @@
+# ADR-005: Schema-level, group-based access control
+# GRANTs are defined at Schema level (not Catalog level) because schemas within the
+# same catalog carry data of different sensitivity (bronze vs gold).
+#
+# Environment-specific GRANT differences (e.g. prod READ-only for data_engineers)
+# are documented in ADR-005 but not implemented in this mock environment.
+# This file defines the development-mode grant set.
+
+catalog_grants:
+  - group: data_platform_admins
+    privileges: [USE_CATALOG, CREATE_SCHEMA]
+  - group: data_engineers
+    privileges: [USE_CATALOG]
+  - group: data_consumers
+    privileges: [USE_CATALOG]
+
+schema_grants:
+  bronze:
+    - group: data_platform_admins
+      privileges: [USE_SCHEMA, SELECT, MODIFY, CREATE_TABLE, CREATE_FUNCTION]
+    - group: data_engineers
+      privileges: [USE_SCHEMA, SELECT, MODIFY, CREATE_TABLE]
+
+  silver:
+    - group: data_platform_admins
+      privileges: [USE_SCHEMA, SELECT, MODIFY, CREATE_TABLE, CREATE_FUNCTION]
+    - group: data_engineers
+      privileges: [USE_SCHEMA, SELECT, MODIFY, CREATE_TABLE]
+
+  gold:
+    - group: data_platform_admins
+      privileges: [USE_SCHEMA, SELECT, MODIFY, CREATE_TABLE, CREATE_FUNCTION]
+    - group: data_engineers
+      privileges: [USE_SCHEMA, SELECT, MODIFY]
+    - group: data_consumers
+      privileges: [USE_SCHEMA, SELECT]
