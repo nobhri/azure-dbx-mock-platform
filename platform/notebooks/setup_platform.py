@@ -116,10 +116,16 @@ render_and_execute("create_schema.sql.j2", {
 # Step 3: CREATE GROUPS via Databricks SDK
 # CREATE GROUP is not a SQL statement -- groups are managed via the REST API.
 # databricks-sdk is pre-installed on DBR 14.3.x.
+# WorkspaceClient() auto-auth does not work on job clusters; pass host+token
+# explicitly from the notebook context (standard pattern for notebook clusters).
 # Idempotent: existing groups are skipped.
 from databricks.sdk import WorkspaceClient
 
-w = WorkspaceClient()
+_ctx = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
+w = WorkspaceClient(
+    host=_ctx.apiUrl().get(),
+    token=_ctx.apiToken().get(),
+)
 existing_group_names = {g.display_name for g in w.groups.list()}
 
 for group in groups_config["groups"]:
