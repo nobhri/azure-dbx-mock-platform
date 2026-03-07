@@ -13,7 +13,7 @@ opened, closed, or changed severity during the session.
 | [#40](https://github.com/nobhri/azure-dbx-mock-platform/issues/40) | MEDIUM | OIDC not configured for pull_request subject | PR CI always fails Azure login. Fix: add `pull_request` federated credential in Entra ID. No code change needed. |
 | [#53](https://github.com/nobhri/azure-dbx-mock-platform/issues/53) | LOW | Document GRANT CREATE CATALOG prerequisite | Update GETTING_STARTED.md and post-destroy-grants runbook. Partially addressed by `docs/runbooks/post-destroy-grants.md`. |
 | [#84](https://github.com/nobhri/azure-dbx-mock-platform/issues/84) | HIGH | Preflight fix commit not merged into main — old buggy code still active | Fix pushed after PR #79 merged; dangling commit. PR #84 re-applies the fix. |
-| [#85](https://github.com/nobhri/azure-dbx-mock-platform/issues/85) | MEDIUM | UC catalog/schema not visible to human user — missing USE CATALOG/USE SCHEMA grants | Groups + grants now automated via platform-layer-rewrite PR. Remaining: human must join `data_platform_admins` group via CLI or GUI after workload-catalog runs. |
+| [#85](https://github.com/nobhri/azure-dbx-mock-platform/issues/85) | MEDIUM | UC catalog/schema not visible to human user — missing USE CATALOG/USE SCHEMA grants | GRANT step now resilient: warns on missing principals, does not fail. Groups must be created as account-level groups via Account Console or CLI (PR #97). Re-run workload-catalog after group creation. |
 | [#82](https://github.com/nobhri/azure-dbx-mock-platform/issues/82) | LOW | Test coverage gap: dynamic metastore import path not exercised in CI | Branch 3 ("Found existing metastore — importing") never triggered. Requires manual `terraform state rm` to test. See session-008 for procedure. |
 
 ---
@@ -26,7 +26,8 @@ These require direct human action in Azure, GitHub, or Databricks — cannot be 
 |--------|----------|-------|
 | Add OIDC federated credential for `pull_request` subject | MEDIUM | Entra ID → App Registration → Federated credentials |
 | After each destroy/recreate: run post-destroy grants (Step 1 — SP grants) | REQUIRED | Databricks SQL warehouse — see [runbook](runbooks/post-destroy-grants.md) |
-| After workload-catalog runs: add yourself to `data_platform_admins` group | ONE-TIME | Databricks CLI: `databricks groups add-member --group-name data_platform_admins --user-name <email>` or Account Console GUI |
+| Create account-level groups (data_platform_admins, data_engineers, data_consumers) | ONE-TIME | Databricks Account Console → User Management → Groups (see runbook Step 2) |
+| After group creation: re-run workload-catalog to apply deferred GRANTs | REQUIRED | GitHub Actions → workload-catalog → Run workflow |
 
 ---
 
