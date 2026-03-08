@@ -22,6 +22,17 @@ Azure, Terraform, Databricks, Asset Bundles, Unity Catalog, Jinja2, GitHub Actio
     `git worktree add .claude/worktrees/<branch-name> -b <branch-name>`
 - Each worktree gets its own branch; all worktrees target main via PR
 
+## Command Style
+- Never chain git or gh commands with `&&`, `;`, or `|`
+- Run each git/gh command separately: `git add .` then `git commit -m "..."` then `git push`
+- Other commands may use `&&` when needed
+- This ensures --allowedTools patterns match correctly
+
+## Issue References
+- In PR descriptions and commit messages, use `refs #XX` or `relates to #XX`
+- NEVER use `fixes`, `closes`, or `resolves` followed by issue numbers
+- Issues are closed manually by the human after CI/CD verification
+
 ## Autonomy Level
 - You may edit, commit, push, and create PRs without asking
 - You may view GitHub Actions run status and logs
