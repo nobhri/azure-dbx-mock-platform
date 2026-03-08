@@ -1,6 +1,6 @@
 # Project Status Snapshot
 
-**Last updated:** 2026-03-07
+**Last updated:** 2026-03-08
 **Update instructions:** Edit this file at the end of each docs PR. Update any issue that was
 opened, closed, or changed severity during the session.
 
@@ -11,7 +11,7 @@ opened, closed, or changed severity during the session.
 | Issue | Severity | Title | Notes |
 |-------|----------|-------|-------|
 | [#40](https://github.com/nobhri/azure-dbx-mock-platform/issues/40) | MEDIUM | OIDC not configured for pull_request subject | PR CI always fails Azure login. Fix: add `pull_request` federated credential in Entra ID. No code change needed. |
-| [#53](https://github.com/nobhri/azure-dbx-mock-platform/issues/53) | LOW | Document GRANT CREATE CATALOG prerequisite | Update GETTING_STARTED.md and post-destroy-grants runbook. Partially addressed by `docs/runbooks/post-destroy-grants.md`. |
+| [#53](https://github.com/nobhri/azure-dbx-mock-platform/issues/53) | LOW | Document GRANT CREATE CATALOG prerequisite | Update GETTING_STARTED.md. Runbook fully updated (PR #98): correct CLI commands, SCIM API for member-add, Account Console as primary path. |
 | [#84](https://github.com/nobhri/azure-dbx-mock-platform/issues/84) | HIGH | Preflight fix commit not merged into main — old buggy code still active | Fix pushed after PR #79 merged; dangling commit. PR #84 re-applies the fix. |
 | [#85](https://github.com/nobhri/azure-dbx-mock-platform/issues/85) | MEDIUM | UC catalog/schema not visible to human user — missing USE CATALOG/USE SCHEMA grants | GRANT step now resilient: warns on missing principals, does not fail. Groups must be created as account-level groups via Account Console or CLI (PR #97). Re-run workload-catalog after group creation. |
 | [#82](https://github.com/nobhri/azure-dbx-mock-platform/issues/82) | LOW | Test coverage gap: dynamic metastore import path not exercised in CI | Branch 3 ("Found existing metastore — importing") never triggered. Requires manual `terraform state rm` to test. See session-008 for procedure. |
@@ -55,6 +55,7 @@ These require direct human action in Azure, GitHub, or Databricks — cannot be 
 | PR | Title | Status |
 |----|-------|--------|
 | [#70](https://github.com/nobhri/azure-dbx-mock-platform/pull/70) | docs: add docs-restructure proposal | Pending human review |
+| [#98](https://github.com/nobhri/azure-dbx-mock-platform/pull/98) | docs: fix group setup and member-add procedures in post-destroy-grants runbook | Pending human review |
 
 ---
 
