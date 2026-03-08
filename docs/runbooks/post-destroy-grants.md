@@ -43,10 +43,14 @@ Unity Catalog `GRANT` statements target **account-level groups only** — worksp
 account level before GRANTs can be applied.
 
 In this mock environment, Databricks-native groups are used (ADR-005: Mock Environment
-Simplification). Create the three groups via **Account Console** or **Databricks CLI with an
-account-level profile**:
+Simplification).
 
-**Account Console:**
+> **Recommended:** Use the **Account Console GUI** — it is the simplest and least error-prone
+> method for both group creation and member addition.
+
+#### Option A — Account Console (recommended)
+
+**Create groups:**
 Databricks Account Console → User Management → Groups → Add Group
 
 Groups to create:
@@ -54,22 +58,76 @@ Groups to create:
 - `data_engineers`
 - `data_consumers`
 
-**Databricks CLI (account-level profile required):**
+**Add yourself to `data_platform_admins`** so you can see the catalog in the Databricks UI:
+Databricks Account Console → User Management → Groups → `data_platform_admins` → Add members
+
+#### Option B — Databricks CLI (account-level profile required)
+
+The `databricks account` subcommand must be used — the workspace-level `databricks groups`
+command targets the wrong API and will not create account-level groups.
+
+**Prerequisites — configure an account-level CLI profile:**
+
 ```bash
-databricks groups create --display-name data_platform_admins --profile <account-profile>
-databricks groups create --display-name data_engineers --profile <account-profile>
-databricks groups create --display-name data_consumers --profile <account-profile>
+# 1. Log in to Azure CLI
+az login
+
+# 2. Create a CLI profile (leave Token blank — Azure CLI auth is used)
+databricks configure --profile account
+#  Host: https://accounts.azuredatabricks.net
+#  Token: (press Enter — leave empty)
+
+# 3. Edit ~/.databrickscfg and add account_id + auth_type to the [account] section:
+#  [account]
+#  host        = https://accounts.azuredatabricks.net
+#  account_id  = <YOUR_DATABRICKS_ACCOUNT_ID>
+#  auth_type   = azure-cli
+
+# 4. Verify connectivity
+databricks account workspaces list --profile account
+```
+
+**Create groups:**
+```bash
+databricks account groups create --display-name data_platform_admins --profile account
+databricks account groups create --display-name data_engineers --profile account
+databricks account groups create --display-name data_consumers --profile account
+```
+
+**Add yourself to `data_platform_admins`:**
+
+The Databricks CLI does not yet implement the account-level member-add operation. Use the
+Account SCIM API directly:
+
+```bash
+# 1. Obtain a Databricks-scoped Azure AD token
+TOKEN=$(az account get-access-token \
+  --resource 2ff814a6-3304-4ab8-85cb-cd0e6f879c1d \
+  --query accessToken -o tsv)
+# Note: 2ff814a6-3304-4ab8-85cb-cd0e6f879c1d is the Databricks Azure AD application ID.
+
+# 2. Patch the group via SCIM API
+#    Replace <ACCOUNT_ID>, <GROUP_ID>, and <USER_ID> with the actual values.
+#    USER_ID is the Databricks user ID (numeric), visible in Account Console → User Management.
+curl -X PATCH \
+  https://accounts.azuredatabricks.net/api/2.0/accounts/<ACCOUNT_ID>/scim/v2/Groups/<GROUP_ID> \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/scim+json" \
+  -d '{
+    "schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+    "Operations": [
+      {
+        "op": "add",
+        "path": "members",
+        "value": [{"value": "<USER_ID>"}]
+      }
+    ]
+  }'
 ```
 
 > **Note:** The `workload-catalog` job (Step 4) attempts all GRANTs and emits a `WARNING` for
 > any group that does not exist yet — it does **not** fail. Re-run `workload-catalog` after
 > creating the groups to apply the deferred grants (all GRANT statements are idempotent).
-
-**Add yourself to `data_platform_admins`** so you can see the catalog in the Databricks UI:
-```bash
-databricks groups add-member --group-name data_platform_admins --user-name <your-email> \
-  --profile <account-profile>
-```
 
 ---
 
