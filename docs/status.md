@@ -1,6 +1,6 @@
 # Project Status Snapshot
 
-**Last updated:** 2026-03-09
+**Last updated:** 2026-03-09 (session 001 — doc review)
 **Update instructions:** Edit this file at the end of each docs PR. Update any issue that was
 opened, closed, or changed severity during the session.
 
@@ -14,6 +14,14 @@ opened, closed, or changed severity during the session.
 | [#53](https://github.com/nobhri/azure-dbx-mock-platform/issues/53) | LOW | Document GRANT CREATE CATALOG prerequisite | Update GETTING_STARTED.md and post-destroy-grants runbook. Partially addressed by `docs/runbooks/post-destroy-grants.md`. |
 | [#82](https://github.com/nobhri/azure-dbx-mock-platform/issues/82) | LOW | Test coverage gap: dynamic metastore import path not exercised in CI | Branch 3 ("Found existing metastore — importing") never triggered. Requires manual `terraform state rm` to test. See session-008 for procedure. |
 | [#11](https://github.com/nobhri/azure-dbx-mock-platform/issues/11) | LOW | Add tflint step to workload-azure.yaml and workload-dbx.yaml | Enhancement blocked historically by OIDC issue #40. |
+| [#105](https://github.com/nobhri/azure-dbx-mock-platform/issues/105) | HIGH | README Current Status and Known Issues stale vs status.md | "In Progress" items are done; Known Issues section diverges from this file. |
+| [#106](https://github.com/nobhri/azure-dbx-mock-platform/issues/106) | HIGH | GETTING_STARTED.md prerequisites table has wrong secrets | Missing `ADLS_STORAGE_NAME`; stale `METASTORE_ID` still listed (removed by PR #81). |
+| [#107](https://github.com/nobhri/azure-dbx-mock-platform/issues/107) | HIGH | post-destroy-grants.md verification SQL references wrong group name | `databricks-platform-users` should be `data_platform_admins`. |
+| [#108](https://github.com/nobhri/azure-dbx-mock-platform/issues/108) | MEDIUM | Extract Production Considerations from README to docs/design/ | README is too long; prod-considerations content belongs in design doc. |
+| [#109](https://github.com/nobhri/azure-dbx-mock-platform/issues/109) | MEDIUM | Add Phase 2 roadmap section to README | Project looks "done but incomplete" to external audience; no visible next-step plan. |
+| [#110](https://github.com/nobhri/azure-dbx-mock-platform/issues/110) | MEDIUM | Add ADR annotations to README architecture diagram | Layer diagram has no cross-references to ADRs; reader must map manually. |
+| [#111](https://github.com/nobhri/azure-dbx-mock-platform/issues/111) | MEDIUM | Improve discoverability — link status.md, add sessions/ README | status.md not linked from README; sessions/ has no explanation for external readers. |
+| [#112](https://github.com/nobhri/azure-dbx-mock-platform/issues/112) | LOW | Close stale PR #70 and triage proposed-state proposals | PR #70 open but already implemented in #71; 5 proposals stuck "Proposed" since 2026-03-05. |
 
 ---
 
@@ -25,6 +33,7 @@ These require direct human action in Azure, GitHub, or Databricks — cannot be 
 |--------|----------|-------|
 | Add OIDC federated credential for `pull_request` subject | MEDIUM | Entra ID → App Registration → Federated credentials |
 | After each destroy/recreate: run post-destroy grants (Step 1 — SP grants) | REQUIRED | Databricks SQL warehouse — see [runbook](runbooks/post-destroy-grants.md) |
+| Close PR #70 (docs-restructure proposal — already implemented in PR #71) | LOW | GitHub — AI agent cannot close PRs per CLAUDE.md |
 
 ---
 
