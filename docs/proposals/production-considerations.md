@@ -1,6 +1,6 @@
 # Proposal: Production Considerations
 
-**Status:** Proposed
+**Status:** Superseded — content merged into [`docs/design/platform-layer.md`](../design/platform-layer.md) §Production Simplifications
 **Date:** 2026-03-05
 **Layer:** Platform / Cross-cutting
 **Related ADRs:** ADR-001 (Terraform scope), ADR-005 (group permissions, updated 2026-03-07)
