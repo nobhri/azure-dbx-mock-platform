@@ -8,15 +8,17 @@ in-place with a final status (`Closed` or `Rejected`) and remains for reference.
 ## Status Lifecycle
 
 ```
-Proposed → Accepted → Closed (implemented or superseded)
-                    → Rejected
+Proposed → Accepted → Closed      (implemented or superseded by a design doc / ADR)
+                    → Superseded  (content absorbed into docs/design/ or docs/adr/)
+                    → Rejected    (explicitly decided against)
 ```
 
 | Status | Meaning |
 |--------|---------|
 | `Proposed` | Under consideration; not yet acted on |
 | `Accepted` | Decision made; implementation in progress or planned |
-| `Closed` | Fully implemented or superseded; kept for reference |
+| `Closed` | Fully implemented; kept for reference |
+| `Superseded` | Content absorbed into a design doc or ADR; proposal kept as redirect |
 | `Rejected` | Explicitly decided against; rationale documented in the file |
 
 ---
@@ -33,7 +35,7 @@ Proposed → Accepted → Closed (implemented or superseded)
 
 | File | Title | Status | Date |
 |------|-------|--------|------|
-| [production-considerations.md](production-considerations.md) | Production Considerations | Proposed | 2026-03-05 |
+| [production-considerations.md](production-considerations.md) | Production Considerations | Superseded — see `docs/design/platform-layer.md` | 2026-03-05 |
 
 ### Data Engineering
 
