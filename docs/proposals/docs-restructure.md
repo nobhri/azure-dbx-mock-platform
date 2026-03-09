@@ -1,7 +1,9 @@
 # Proposal: docs/ Directory Restructure
 
-**Status:** Accepted — implemented in PR #71
+**Status:** Closed — implemented in PR #71
 **Date:** 2026-03-06
+**Layer:** Docs/Process
+**Related ADRs:** none
 **Author:** Claude Code (session docs/code-review-2026-03-06-update)
 
 ---
@@ -166,11 +168,11 @@ When this proposal is approved, execute in order:
 
 ## Verification Checklist
 
-- [ ] `ls docs/` shows new subdirectory structure (`adr/`, `design/`, `runbooks/`, `sessions/`, `proposals/`)
-- [ ] `git log --oneline --name-status` shows renames (R100), not deletions + additions, for migrated files
-- [ ] `docs/proposals/docs-restructure.md` exists and is readable standalone
-- [ ] `docs/status.md` reflects current open issues (#40, #53, #64, #68) and pending human actions
-- [ ] `README.md` ADR section links to `docs/adr/` files and still renders correctly
-- [ ] `GETTING_STARTED.md` destroy section links to `docs/runbooks/destroy-recreate.md`
-- [ ] `CLAUDE.md` updated with session naming convention
-- [ ] `MEMORY.md` updated with session naming convention note
+- [x] `ls docs/` shows new subdirectory structure (`adr/`, `design/`, `runbooks/`, `sessions/`, `proposals/`)
+- [x] `git log --oneline --name-status` shows renames (R100), not deletions + additions, for migrated files
+- [x] `docs/proposals/docs-restructure.md` exists and is readable standalone
+- [x] `docs/status.md` reflects current open issues and pending human actions
+- [x] `README.md` ADR section links to `docs/adr/` files and still renders correctly
+- [x] `GETTING_STARTED.md` destroy section links to `docs/runbooks/destroy-recreate.md`
+- [x] `CLAUDE.md` updated with session naming convention
+- [x] `MEMORY.md` updated with session naming convention note
