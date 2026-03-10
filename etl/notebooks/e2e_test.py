@@ -35,10 +35,9 @@ print(f"env = {env}, num_records = {num_records}")
 from mock_platform.catalog_lookup import get_catalog
 
 catalog = get_catalog(env)
-schema = "sales"
-bronze_table = f"`{catalog}`.`{schema}`.`orders_bronze`"
-silver_table = f"`{catalog}`.`{schema}`.`orders_silver`"
-gold_table = f"`{catalog}`.`{schema}`.`daily_sales_by_region`"
+bronze_table = f"`{catalog}`.`bronze`.`orders_bronze`"
+silver_table = f"`{catalog}`.`silver`.`orders_silver`"
+gold_table = f"`{catalog}`.`gold`.`daily_sales_by_region`"
 print(f"Target tables: {bronze_table}, {silver_table}, {gold_table}")
 
 # COMMAND ----------
