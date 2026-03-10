@@ -17,7 +17,9 @@
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
 | `AZURE_CLIENT_ID` | App registration client ID (created below) |
 | `TFSTATE_SA_UNIQ` | Short unique suffix for state Storage Account name |
+| `ADLS_STORAGE_NAME` | Name of the ADLS Gen2 Storage Account created by `workload-azure` |
 | `DATABRICKS_ACCOUNT_ID` | Databricks Account ID (for Unity Catalog setup) |
+| `ALERT_EMAIL` | Email address for budget alert notifications (used by `guardrails`) |
 
 ---
 
@@ -103,8 +105,9 @@ AZURE_TENANT_ID=$TENANT_ID
 AZURE_SUBSCRIPTION_ID=$SUB_ID
 AZURE_CLIENT_ID=$APP_ID
 TFSTATE_SA_UNIQ=<short unique suffix>
+ADLS_STORAGE_NAME=<your ADLS Gen2 Storage Account name>
 DATABRICKS_ACCOUNT_ID=<your Databricks Account ID>
-METASTORE_ID=<your Unity Catalog metastore UUID>
+ALERT_EMAIL=<email for budget alert notifications>
 ```
 
 ---
