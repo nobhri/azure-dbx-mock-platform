@@ -276,6 +276,8 @@ In a multi-Storage-Account setup, NCC configuration must be repeated for each ac
 
 ## Current Status (MVP)
 
+> **Live tracking:** [`docs/status.md`](docs/status.md) is the authoritative snapshot of open issues, pending actions, and architecture state. The section below is a high-level summary.
+
 ### Done
 
 - Azure infrastructure provisioned via Terraform
