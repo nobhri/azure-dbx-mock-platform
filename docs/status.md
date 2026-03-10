@@ -44,6 +44,7 @@ These require direct human action in Azure, GitHub, or Databricks — cannot be 
 
 | Issue | Title | Closed by |
 |-------|-------|-----------|
+| [#131](https://github.com/nobhri/azure-dbx-mock-platform/issues/131) | workload-etl workflow failing — notebook/whl paths wrong, wrong schema names, wrong CI job | PRs #133 #134 #135 #136 #138 — all path and schema fixes + use etl-e2e-test in CI; confirmed success 2026-03-10 |
 | [#85](https://github.com/nobhri/azure-dbx-mock-platform/issues/85) | UC catalog/schema not visible to human user — missing USE CATALOG/USE SCHEMA grants | PRs #96 #97 — SCIM group creation + resilient GRANTs; confirmed accessible 2026-03-09 |
 | [#93](https://github.com/nobhri/azure-dbx-mock-platform/issues/93) | setup_platform fails: CREATE GROUP is not valid Unity Catalog SQL | PR #94 — replaced SQL with SDK group creation |
 | [#91](https://github.com/nobhri/azure-dbx-mock-platform/issues/91) | workload-catalog fails: ModuleNotFoundError: No module named 'yaml' on DBR 14.3.x | PR #92 — added PyYAML to cluster setup job |
@@ -78,7 +79,10 @@ _No open PRs._
 | workload-azure | Applied (active as of 2026-03-07) |
 | workload-dbx | Applied (active as of 2026-03-07) — metastore, external location, workspace |
 | workload-catalog | Applied — catalog/schema/groups/grants confirmed accessible 2026-03-09 |
+| workload-etl | Deployed — etl-e2e-test CI passing 2026-03-10; bronze/silver/gold tables confirmed in workspace |
 | guardrails | Deployed |
 | tfstate backend | Deployed |
 
 **Platform layer status:** Complete. Catalog and schema are created and accessible to human user. Account-level groups created and GRANTs applied successfully (workload-catalog last run: 2026-03-08, success).
+
+**ETL layer status:** Active. `workload-etl` CI passing as of 2026-03-10 (run 22888609919). Bronze/silver/gold tables confirmed in workspace. `etl-pipeline` (production) also manually triggered and verified by human on 2026-03-10.

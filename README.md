@@ -231,10 +231,10 @@ the full write-up.
 - SDLC variable parametrization across environments
 - GitHub Actions Workflow Dispatch for `dev`/`staging`
 - ADR documentation (5 ADRs)
+- MVP ETL pipeline using `saveAsTable` (bronze → silver → gold confirmed 2026-03-10)
 
 ### In Progress
 
-- MVP ETL pipeline using `saveAsTable`
 - README finalization for public release
 
 ### Known Issues
