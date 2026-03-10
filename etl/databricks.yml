@@ -1,0 +1,17 @@
+bundle:
+  name: mock-platform-etl
+
+variables:
+  env:
+    description: "Target environment (dev / prod). Controls catalog resolution via catalog_lookup."
+    default: "dev"
+
+targets:
+  dev:
+    mode: development
+    default: true
+  prod:
+    mode: production
+
+include:
+  - resources/*.yml

@@ -1,0 +1,28 @@
+resources:
+  jobs:
+    etl-e2e-test:
+      name: "etl-e2e-test"
+      tasks:
+        - task_key: generate_and_test
+          notebook_task:
+            notebook_path: ./notebooks/e2e_test.py
+            source: WORKSPACE
+            base_parameters:
+              env: "${var.env}"
+              num_records: "50"
+          libraries:
+            - whl: ./dist/*.whl
+            - pypi:
+                package: faker
+          new_cluster:
+            spark_version: "14.3.x-scala2.12"
+            node_type_id: "Standard_DS3_v2"
+            num_workers: 0
+            data_security_mode: SINGLE_USER
+            spark_conf:
+              spark.master: "local[*, 4]"
+              spark.databricks.cluster.profile: "singleNode"
+            custom_tags:
+              ResourceClass: SingleNode
+      queue:
+        enabled: true
