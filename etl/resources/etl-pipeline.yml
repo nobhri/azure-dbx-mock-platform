@@ -5,7 +5,7 @@ resources:
       tasks:
         - task_key: run_pipeline
           notebook_task:
-            notebook_path: ./notebooks/pipeline.py
+            notebook_path: ../notebooks/pipeline.py
             source: WORKSPACE
             base_parameters:
               env: "${var.env}"
