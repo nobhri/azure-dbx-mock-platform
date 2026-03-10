@@ -1,6 +1,6 @@
 # Proposal: ETL Overwrite Pattern
 
-**Status:** Proposed
+**Status:** Accepted — Phase 2 data engineering; ADR-006 candidate pending
 **Date:** 2026-03-05
 **Layer:** Data Engineering
 **Related ADRs:** ADR-003 (idempotency)

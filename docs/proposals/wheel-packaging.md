@@ -1,6 +1,6 @@
 # Proposal: Wheel Packaging
 
-**Status:** Proposed
+**Status:** Accepted — Phase 2 data engineering; ADR-007 candidate pending
 **Date:** 2026-03-05
 **Layer:** Data Engineering
 

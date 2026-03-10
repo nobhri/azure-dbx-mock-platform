@@ -1,6 +1,6 @@
 # Proposal: Testing Strategy
 
-**Status:** Proposed
+**Status:** Accepted — Phase 2 data engineering
 **Date:** 2026-03-05
 **Layer:** Data Engineering
 **Related ADRs:** ADR-003 (idempotency)

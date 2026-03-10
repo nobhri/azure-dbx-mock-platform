@@ -41,8 +41,8 @@ Proposed → Accepted → Closed      (implemented or superseded by a design doc
 
 | File | Title | Status | Date |
 |------|-------|--------|------|
-| [etl-overwrite-pattern.md](etl-overwrite-pattern.md) | ETL Overwrite Pattern | Proposed | 2026-03-05 |
-| [testing-strategy.md](testing-strategy.md) | Testing Strategy | Proposed | 2026-03-05 |
-| [code-design-transform-separation.md](code-design-transform-separation.md) | Code Design — Transform/Pipeline Separation | Proposed | 2026-03-05 |
-| [sdlc-catalog-lookup.md](sdlc-catalog-lookup.md) | SDLC Catalog Lookup | Proposed | 2026-03-05 |
-| [wheel-packaging.md](wheel-packaging.md) | Wheel Packaging | Proposed | 2026-03-05 |
+| [etl-overwrite-pattern.md](etl-overwrite-pattern.md) | ETL Overwrite Pattern | Accepted — Phase 2 data engineering; ADR-006 candidate pending | 2026-03-05 |
+| [testing-strategy.md](testing-strategy.md) | Testing Strategy | Accepted — Phase 2 data engineering | 2026-03-05 |
+| [code-design-transform-separation.md](code-design-transform-separation.md) | Code Design — Transform/Pipeline Separation | Accepted — Phase 2 data engineering | 2026-03-05 |
+| [sdlc-catalog-lookup.md](sdlc-catalog-lookup.md) | SDLC Catalog Lookup | Accepted — Phase 2 data engineering | 2026-03-05 |
+| [wheel-packaging.md](wheel-packaging.md) | Wheel Packaging | Accepted — Phase 2 data engineering; ADR-007 candidate pending | 2026-03-05 |
