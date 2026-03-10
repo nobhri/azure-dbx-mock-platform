@@ -250,6 +250,48 @@ the full write-up.
 
 -----
 
+## Phase 2 Roadmap
+
+> These items represent the planned next phase of development. Phase 1 (MVP) established the foundational layer separation, CI/CD discipline, and governance baseline. Phase 2 expands the platform toward a realistic multi-workspace, multi-team operating model.
+
+### Developer Experience
+
+| Item | Description |
+|------|-------------|
+| Local `bundle run` in `dev` | Enable via VS Code Databricks extension scoped to per-developer namespaces (isolated catalog/schema per developer). Eliminates environment collision risk while improving iteration speed. See [CI/CD Design](#cicd-design) for Phase 1 rationale. |
+| Per-developer namespace isolation | Each developer gets a dedicated catalog/schema prefix in `dev` — prevents shared state collisions during local iteration. |
+
+### Multi-Workspace Expansion
+
+| Item | Description |
+|------|-------------|
+| `staging` workspace | Add a dedicated staging workspace and catalog. Currently only `dev` and `prod` targets exist in Asset Bundles. |
+| `prod` workspace separation | Promote prod to a dedicated workspace (currently same workspace as dev, separated by catalog only). |
+| Consumer workspace | Deploy the consumer workspace described in [ADR-004](docs/adr/004-consumer-access.md) — a separate workspace with a View layer over the prod catalog for business consumers. |
+
+### Identity & Governance
+
+| Item | Description |
+|------|-------------|
+| EntraID Native Sync | Replace Databricks-native groups with EntraID-synced groups. Native Sync supports nested groups and simplifies offboarding propagation. See [ADR-005](docs/adr/005-group-permissions.md). |
+| Table/View DDL Layer | Implement the Jinja2 DDL layer for table and view definitions, currently shown as "planned" in the architecture diagram. Owned by the Data Engineering team. |
+
+### Network & Security
+
+| Item | Description |
+|------|-------------|
+| Private Endpoint for Storage | Add Azure Private Endpoint for the ADLS Storage Account (currently accessible over public endpoint with RBAC). |
+| NCC for Serverless compute | Configure Network Connectivity Configuration to allow Serverless nodes to reach Storage via Private Endpoint. See [Production Considerations — Serverless Compute](#serverless-compute--network-configuration-ncc). |
+
+### Observability
+
+| Item | Description |
+|------|-------------|
+| Audit log pipeline | Forward Databricks audit logs to ADLS via Diagnostic Settings. Baseline for compliance and access review. |
+| Job run history retention | Define a retention and export policy for GitHub Actions run logs and Databricks job run history. |
+
+-----
+
 ## Blog Series
 
 Detailed write-ups on specific decisions:
