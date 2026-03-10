@@ -11,7 +11,7 @@ resources:
               env: "${var.env}"
               num_records: "50"
           libraries:
-            - whl: ./dist/*.whl
+            - whl: ../dist/*.whl
             - pypi:
                 package: faker
           new_cluster:
