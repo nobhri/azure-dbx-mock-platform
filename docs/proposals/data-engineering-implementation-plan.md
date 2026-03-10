@@ -150,9 +150,15 @@ reviewable and mergeable.
 
 | Context | Strategy | Source |
 |---------|----------|--------|
-| Unit tests (GH Actions) | Static fixtures | Hand-written Python dicts or small CSV in `tests/fixtures/` |
+| Unit tests (GH Actions) | Inline Python dicts | Hand-written dicts passed to `spark.createDataFrame()` — no fixture files |
 | E2E tests (Databricks) | Faker-generated | `faker` library, installed as job-level `pypi` dependency |
 | Dev seed data | Static CSV | `data/sample_orders.csv` committed to repo |
+
+**Unit test fixtures use inline Python dicts, not CSV or JSON files.** Dicts keep test
+input and assertions in the same file — when a test fails, the reader sees the data and
+the expectation without jumping to a fixture file. Edge cases (None, duplicates, wrong
+types) are trivially expressed. CSV and JSON add file I/O overhead and ambiguous null
+representation for no benefit at the 5–10 row scale of unit tests.
 
 **Faker is not in the production wheel.** It is declared only in the E2E test job's
 `libraries` in `databricks.yml`:
