@@ -280,20 +280,19 @@ In a multi-Storage-Account setup, NCC configuration must be repeated for each ac
 
 - Azure infrastructure provisioned via Terraform
 - Databricks Workspace + Unity Catalog Metastore configured
+- Catalog/Schema management via Jinja2 + Python Notebook (workload-catalog confirmed accessible 2026-03-08)
+- Asset Bundles with environment-specific targets (`dev`, `staging`, `prod`)
+- SDLC variable parametrization across environments
+- GitHub Actions Workflow Dispatch for `dev`/`staging`
+- ADR documentation (5 ADRs)
 
 ### In Progress
 
-- Asset Bundles with environment-specific targets (`dev`, `staging`, `prod`)
-- SDLC variable parametrization across environments
 - MVP ETL pipeline using `saveAsTable`
-- Catalog/Schema management via Jinja2 + Python Notebook (replacing Terraform-managed catalog)
-- GitHub Actions Workflow Dispatch for `dev`/`staging`
-- ADR documentation
 - README finalization for public release
 
 ### Known Issues
 
-- `go-task` runner abstraction became complex; CI/CD integration needs simplification
 - **Destroy order matters:** Always destroy `workload-dbx` before `workload-azure`. Destroying Azure first leaves Unity Catalog account-scope objects (`uc-mi-credential`, `uc-root-location`) orphaned. `force_destroy = true` on the metastore (PR [#50](https://github.com/nobhri/azure-dbx-mock-platform/pull/50)) now cascade-deletes notebook-created catalogs automatically — manual UC cleanup is no longer required when the correct destroy order is followed.
 - **Post-destroy manual grants required:** After each full destroy + recreate cycle, the metastore admin must re-run both grants manually (the SP cannot self-grant account-level UC privileges):
   - `GRANT CREATE EXTERNAL LOCATION ON METASTORE TO '<SP_client_id>';`
