@@ -21,7 +21,7 @@ opened, closed, or changed severity during the session.
 | [#109](https://github.com/nobhri/azure-dbx-mock-platform/issues/109) | MEDIUM | Add Phase 2 roadmap section to README | Project looks "done but incomplete" to external audience; no visible next-step plan. |
 | [#110](https://github.com/nobhri/azure-dbx-mock-platform/issues/110) | MEDIUM | Add ADR annotations to README architecture diagram | Layer diagram has no cross-references to ADRs; reader must map manually. |
 | [#111](https://github.com/nobhri/azure-dbx-mock-platform/issues/111) | MEDIUM | Improve discoverability — link status.md, add sessions/ README | status.md not linked from README; sessions/ has no explanation for external readers. |
-| [#112](https://github.com/nobhri/azure-dbx-mock-platform/issues/112) | LOW | Close stale PR #70 and triage proposed-state proposals | PR #70 open but already implemented in #71; 5 proposals stuck "Proposed" since 2026-03-05. |
+| [#112](https://github.com/nobhri/azure-dbx-mock-platform/issues/112) | LOW | Triage proposed-state proposals | PR #70 confirmed merged (2026-03-06). 5 proposals triaged to Accepted in PR #121. |
 
 ---
 
@@ -33,7 +33,7 @@ These require direct human action in Azure, GitHub, or Databricks — cannot be 
 |--------|----------|-------|
 | Add OIDC federated credential for `pull_request` subject | MEDIUM | Entra ID → App Registration → Federated credentials |
 | After each destroy/recreate: run post-destroy grants (Step 1 — SP grants) | REQUIRED | Databricks SQL warehouse — see [runbook](runbooks/post-destroy-grants.md) |
-| Close PR #70 (docs-restructure proposal — already implemented in PR #71) | LOW | GitHub — AI agent cannot close PRs per CLAUDE.md |
+
 
 ---
 
@@ -64,7 +64,7 @@ These require direct human action in Azure, GitHub, or Databricks — cannot be 
 
 | PR | Title | Status |
 |----|-------|--------|
-| [#70](https://github.com/nobhri/azure-dbx-mock-platform/pull/70) | docs: add docs-restructure proposal | Pending human review |
+_No open PRs._
 
 ---
 
