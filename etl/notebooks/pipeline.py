@@ -85,6 +85,8 @@ GROUP BY region, order_date
 ORDER BY region, order_date
 """
 
+print(f"Dropping existing table if present: {gold_view}")
+spark.sql(f"DROP TABLE IF EXISTS {gold_view}")
 print(f"Creating gold view: {gold_view}")
 spark.sql(view_ddl)
 print("Gold view created.")
