@@ -44,10 +44,16 @@ commit 098ea15 (replaced by Faker-based E2E). ADR-006 and ADR-007 still pending
 
 ### Short-Term Issues Created
 
-- Gold layer: use view instead of table
-- CI: add wheel build step
-- CI: enable pytest-cov
-- Pipeline: add bronze schema validation
+| Issue | Title |
+|-------|-------|
+| [#141](https://github.com/nobhri/azure-dbx-mock-platform/issues/141) | Gold layer: use view instead of table for daily_sales_by_region |
+| [#142](https://github.com/nobhri/azure-dbx-mock-platform/issues/142) | CI: add wheel build step to test-unit.yaml |
+| [#143](https://github.com/nobhri/azure-dbx-mock-platform/issues/143) | CI: enable pytest-cov coverage reporting |
+| [#144](https://github.com/nobhri/azure-dbx-mock-platform/issues/144) | Pipeline: add bronze schema validation at read time |
+
+### Cross-Reference Comments
+
+- #126 (ADR-006/007): commented with gold-as-view and schema evolution considerations
 
 ### Issues for Reference
 
@@ -58,4 +64,4 @@ commit 098ea15 (replaced by Faker-based E2E). ADR-006 and ADR-007 still pending
 - `docs/proposals/etl-short-term-improvements.md` (Accepted)
 - `docs/proposals/etl-future-enhancements.md` (Proposed)
 - `docs/proposals/README.md` updated
-- GitHub issues created for short-term items
+- GitHub issues: #141, #142, #143, #144
