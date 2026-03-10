@@ -300,6 +300,10 @@ Detailed write-ups on specific decisions:
   *A design journal for Terraform + Databricks + GitHub Actions: Part 1 — Workspace & Metastore*
   Repo snapshot: [blog/cicd-part1](https://github.com/nobhri/azure-dbx-mock-platform/tree/blog/cicd-part1)
 
+- [x] **[Terraform Stops at the Metastore — Managing Unity Catalog with Jinja2 and CI/CD](https://platform-notes.hashnode.dev/terraform-stops-at-the-metastore-managing-unity-catalog-with-jinja2-and-ci-cd)**
+  *A design journal for Terraform + Databricks + GitHub Actions: Part 2 — Catalog & Schema*
+  Repo snapshot: [blog/cicd-part2](https://github.com/nobhri/azure-dbx-mock-platform/tree/blog/cicd-part2)
+
 - [ ] Terraform vs SQL for Unity Catalog Management — a real trade-off analysis
 - [ ] Why I banned local `databricks bundle run`
 - [ ] Asset Bundles parameter propagation: the bug and the fix
@@ -314,7 +318,7 @@ Detailed write-ups on specific decisions:
 **Nobuaki Hirai** — Data Platform Architect / Data Engineer  
 Working at the intersection of cloud infrastructure, data governance, and organizational constraints.
 
-[GitHub](https://github.com/nobhri)  · [LinkedIn](https://linkedin.com/)
+[GitHub](https://github.com/nobhri)  · [LinkedIn](https://linkedin.com/)  · [Blog](https://platform-notes.hashnode.dev)
 
 
 ---
