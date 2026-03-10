@@ -152,7 +152,7 @@ SHOW GRANTS ON METASTORE;
 After Step 2 grants:
 ```sql
 SHOW GRANTS ON CATALOG <catalog_name>;
--- Confirm databricks-platform-users appears with USE CATALOG
+-- Confirm data_platform_admins appears with USE CATALOG
 ```
 
 ---
