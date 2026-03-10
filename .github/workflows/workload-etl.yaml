@@ -1,0 +1,103 @@
+name: workload-etl
+on:
+  push:
+    branches: [ "main" ]
+    paths: [ "etl/**" ]
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Target environment (dev / prod)"
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - prod
+
+concurrency:
+  group: etl-${{ github.event_name == 'push' && 'dev' || inputs.env }}
+  cancel-in-progress: true
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TFSTATE_RG_NAME: rg-tfstate
+  TFSTATE_SA_NAME: st${{ secrets.TFSTATE_SA_UNIQ }}tfstate
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Init workload-azure backend to read outputs
+        run: |
+          terraform -chdir=infra/workload-azure init \
+            -backend-config="resource_group_name=$TFSTATE_RG_NAME" \
+            -backend-config="storage_account_name=$TFSTATE_SA_NAME" \
+            -backend-config="container_name=workload-tfstate" \
+            -backend-config="key=azure.tfstate"
+
+      - name: Capture workload-azure outputs
+        id: azout
+        run: |
+          echo "WORKSPACE_URL=$(terraform -chdir=infra/workload-azure output -raw workspace_url)" >> $GITHUB_OUTPUT
+
+      - name: Set DATABRICKS_HOST
+        run: echo "DATABRICKS_HOST=https://${{ steps.azout.outputs.WORKSPACE_URL }}" >> $GITHUB_ENV
+
+      - name: Acquire Databricks token via Azure CLI
+        run: |
+          TOKEN=$(az account get-access-token \
+            --resource 2ff814a6-3304-4ab8-85cb-cd0e6f879c1d \
+            --query accessToken -o tsv)
+          echo "DATABRICKS_TOKEN=$TOKEN" >> $GITHUB_ENV
+
+      - name: Install Databricks CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+
+      - name: Set bundle target
+        id: target
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "TARGET=dev" >> $GITHUB_OUTPUT
+          else
+            echo "TARGET=${{ inputs.env }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build wheel
+        run: |
+          pip install build
+          python -m build etl/
+
+      - name: Bundle deploy
+        working-directory: etl
+        run: |
+          databricks bundle deploy --target ${{ steps.target.outputs.TARGET }} \
+            --var "env=${{ steps.target.outputs.TARGET }}"
+
+      - name: Bundle run — etl-pipeline
+        working-directory: etl
+        run: |
+          databricks bundle run etl-pipeline \
+            --target ${{ steps.target.outputs.TARGET }} \
+            --var "env=${{ steps.target.outputs.TARGET }}" \
+            --no-wait=false
