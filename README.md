@@ -44,6 +44,7 @@ The design intentionally reflects a common scenario: **a low-to-mid maturity org
 │  EntraID Groups ──sync──→ Databricks                         │
 │  Permissions assigned to Groups only — never to individuals  │
 │  Group → Workspace/Catalog assignment: Platform Layer (SQL)  │
+│                             ↑ see ADR-005                    │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -56,22 +57,27 @@ The design intentionally reflects a common scenario: **a low-to-mid maturity org
 │  Azure Layer                                         │
 │  Terraform — managed by Infrastructure team          │
 │  (VNet, Storage, RBAC, Databricks Workspace)         │
+│  ↑ see ADR-001 (Terraform scope), ADR-002 (OIDC)    │
 ├──────────────────────────────────────────────────────┤
 │  Databricks Account Layer                            │
 │  Terraform — one-time setup only                     │
 │  (Metastore creation, Storage credential binding)    │
+│  ↑ see ADR-001 (Terraform scope)                     │
 ├──────────────────────────────────────────────────────┤
 │  Catalog / Schema / Permission Layer                 │
 │  Jinja2 + Python Notebook — Data Platform team       │
 │  (DDL + GRANT, config-driven, run via CI/CD)         │
+│  ↑ see ADR-001 (not Terraform), ADR-005 (groups)    │
 ├──────────────────────────────────────────────────────┤
 │  Job / Workflow Layer                                │
 │  Asset Bundles — Data Engineering team               │
 │  (Idempotent ETL jobs, target-based deployment)      │
+│  ↑ see ADR-003 (idempotency)                         │
 ├──────────────────────────────────────────────────────┤
 │  Table / View DDL Layer                              │
 │  Jinja2 DDL (planned) / saveAsTable (MVP)            │
 │  (Owned by Data Engineering)                         │
+│  ↑ see ADR-004 (consumer access patterns)            │
 └──────────────────────────────────────────────────────┘
 ```
 
