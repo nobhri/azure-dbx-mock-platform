@@ -37,8 +37,8 @@ from mock_platform.catalog_lookup import get_catalog
 catalog = get_catalog(env)
 bronze_table = f"`{catalog}`.`bronze`.`orders_bronze`"
 silver_table = f"`{catalog}`.`silver`.`orders_silver`"
-gold_table = f"`{catalog}`.`gold`.`daily_sales_by_region`"
-print(f"Target tables: {bronze_table}, {silver_table}, {gold_table}")
+gold_view = f"`{catalog}`.`gold`.`daily_sales_by_region`"
+print(f"Target tables: {bronze_table}, {silver_table}, {gold_view}")
 
 # COMMAND ----------
 
@@ -99,11 +99,11 @@ print("Bronze write complete.")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Step 2 — Run pipeline (bronze → silver → gold)
+# MAGIC ## Step 2 — Run pipeline (bronze → silver → gold view)
 
 # COMMAND ----------
 
-from mock_platform.transform import clean_orders, aggregate_daily_sales
+from mock_platform.transform import clean_orders
 
 df_bronze = spark.table(bronze_table)
 df_silver = clean_orders(df_bronze)
@@ -118,16 +118,21 @@ print("Silver write complete.")
 
 # COMMAND ----------
 
-df_silver_read = spark.table(silver_table)
-df_gold = aggregate_daily_sales(df_silver_read)
+gold_view_ddl = f"""
+CREATE OR REPLACE VIEW {gold_view} AS
+SELECT
+    region,
+    order_date,
+    CAST(SUM(quantity * unit_price) AS DECIMAL(18, 2)) AS total_revenue,
+    COUNT(order_id) AS order_count
+FROM {silver_table}
+GROUP BY region, order_date
+ORDER BY region, order_date
+"""
 
-(
-    df_gold.write
-    .mode("overwrite")
-    .option("overwriteSchema", "true")
-    .saveAsTable(gold_table)
-)
-print("Gold write complete.")
+print(f"Creating gold view: {gold_view}")
+spark.sql(gold_view_ddl)
+print("Gold view created.")
 
 # COMMAND ----------
 
@@ -164,7 +169,7 @@ print("Silver schema assertions passed.")
 # COMMAND ----------
 
 # --- Gold schema assertions ---
-df_gold_out = spark.table(gold_table)
+df_gold_out = spark.table(gold_view)
 gold_fields = {f.name: f for f in df_gold_out.schema.fields}
 
 expected_gold_columns = {"region", "order_date", "total_revenue", "order_count"}
@@ -192,7 +197,7 @@ silver_count = df_silver_out.count()
 gold_count = df_gold_out.count()
 
 assert silver_count > 0, "Silver table is empty after pipeline run."
-assert gold_count > 0, "Gold table is empty after pipeline run."
+assert gold_count > 0, "Gold view is empty after pipeline run."
 
 # Gold must have at most as many rows as silver (aggregation reduces rows)
 assert gold_count <= silver_count, (
@@ -221,4 +226,4 @@ print(f"Row-count checks passed. Silver: {silver_count} rows, Gold: {gold_count}
 print("All E2E assertions passed.")
 print(f"  bronze: {df_generated.count()} rows written")
 print(f"  silver: {silver_count} rows (after clean_orders)")
-print(f"  gold:   {gold_count} rows (after aggregate_daily_sales)")
+print(f"  gold:   {gold_count} rows (view over silver)")

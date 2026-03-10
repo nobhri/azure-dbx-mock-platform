@@ -3,7 +3,8 @@
 # MAGIC # ETL Pipeline: Bronze → Silver → Gold
 # MAGIC
 # MAGIC Orchestration notebook. Reads bronze, applies transforms from the `mock_platform` wheel,
-# MAGIC and writes silver and gold tables via `saveAsTable(mode="overwrite")`.
+# MAGIC and writes silver via `saveAsTable(mode="overwrite")`. The gold layer is a SQL view
+# MAGIC (`CREATE OR REPLACE VIEW`) over silver — no separate write step (aligns with ADR-004).
 # MAGIC
 # MAGIC **Usage:** Deployed as the `etl-pipeline` job in `etl/databricks.yml`.
 
@@ -66,31 +67,27 @@ print("Silver write complete.")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Silver → Gold
+# MAGIC ## Silver → Gold (view)
 
 # COMMAND ----------
 
-from mock_platform.transform import aggregate_daily_sales
+gold_view = f"`{catalog}`.`gold`.`daily_sales_by_region`"
 
-gold_table = f"`{catalog}`.`gold`.`daily_sales_by_region`"
+view_ddl = f"""
+CREATE OR REPLACE VIEW {gold_view} AS
+SELECT
+    region,
+    order_date,
+    CAST(SUM(quantity * unit_price) AS DECIMAL(18, 2)) AS total_revenue,
+    COUNT(order_id) AS order_count
+FROM {silver_table}
+GROUP BY region, order_date
+ORDER BY region, order_date
+"""
 
-print(f"Reading silver: {silver_table}")
-df_silver_read = spark.table(silver_table)
-
-df_gold = aggregate_daily_sales(df_silver_read)
-df_gold.printSchema()
-print(f"Gold row count: {df_gold.count()}")
-
-# COMMAND ----------
-
-print(f"Writing gold: {gold_table}")
-(
-    df_gold.write
-    .mode("overwrite")
-    .option("overwriteSchema", "true")
-    .saveAsTable(gold_table)
-)
-print("Gold write complete.")
+print(f"Creating gold view: {gold_view}")
+spark.sql(view_ddl)
+print("Gold view created.")
 
 # COMMAND ----------
 
@@ -99,6 +96,6 @@ print("Gold write complete.")
 
 # COMMAND ----------
 
-print(f"Pipeline complete. Tables written:")
-print(f"  silver: {silver_table}")
-print(f"  gold:   {gold_table}")
+print(f"Pipeline complete.")
+print(f"  silver: {silver_table} (table)")
+print(f"  gold:   {gold_view} (view)")
