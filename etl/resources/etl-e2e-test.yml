@@ -5,7 +5,7 @@ resources:
       tasks:
         - task_key: generate_and_test
           notebook_task:
-            notebook_path: ./notebooks/e2e_test.py
+            notebook_path: ../notebooks/e2e_test.py
             source: WORKSPACE
             base_parameters:
               env: "${var.env}"
