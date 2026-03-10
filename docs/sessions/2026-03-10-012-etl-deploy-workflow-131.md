@@ -1,4 +1,4 @@
-# Session: 2026-03-10-005 — ETL Deploy Workflow Bug Fixes
+# Session: 2026-03-10-012 — ETL Deploy Workflow Bug Fixes
 
 **Date:** 2026-03-10
 **Issue:** [#131](https://github.com/nobhri/azure-dbx-mock-platform/issues/131)

@@ -57,13 +57,23 @@ Azure, Terraform, Databricks, Asset Bundles, Unity Catalog, Jinja2, GitHub Actio
 - Do not move Catalog/Schema management back to Terraform
 - Prod execution: CI/CD only, no manual runs
 
-## Session Lifecycle
-- At session start: create worktree (see Git section) before editing any files
-- At session start: read `docs/status.md` before running any `gh` commands
-- At session end: update `docs/status.md` if any issues were opened, closed, or changed severity
+## Session Start Checklist
+Run these steps in order before touching any files:
 
-## Session File Naming
-- Session notes go in `docs/sessions/YYYY-MM-DD-NNN-slug.md`
-- NNN is a zero-padded 3-digit sequence (001, 002, ...)
-- Determine next NNN by globbing `docs/sessions/YYYY-MM-DD-*.md` at session start; start at 001 if none exist
-- Example: `docs/sessions/2026-03-07-001-oidc-fix.md`
+1. Read `docs/status.md`
+2. Glob `docs/sessions/YYYY-MM-DD-*.md` to determine the next NNN for today
+3. Create worktree: `git worktree add .claude/worktrees/<branch> -b <branch>`
+   - Branch name should include the NNN (e.g., `docs/2026-03-10-009-slug`) to ensure uniqueness
+4. Create the session file from the template in `docs/sessions/README.md`
+
+## Session End Checklist
+Before finishing:
+
+1. Ensure the session file has **Outcome** and all **Artifacts** filled in
+2. Update `docs/status.md` if any issues were opened, closed, or changed severity
+
+## Common Mistakes
+- **Using `fixes #XX` or `closes #XX` in commits**: This auto-closes issues on merge. Use `refs #XX` instead. Issues are closed manually after CI/CD verification.
+- **Duplicate session NNN**: Always glob before picking the next NNN. Parallel sessions on the same date must each check for the highest existing number independently.
+- **Forgetting status.md update**: If you opened or changed an issue, update `docs/status.md` before finishing the session.
+- **Skipping worktree creation**: Never edit files in the main working tree. All changes go through a worktree branch → PR → main.

@@ -1,6 +1,6 @@
 # Project Status Snapshot
 
-**Last updated:** 2026-03-10 (session 008 — ETL code review)
+**Last updated:** 2026-03-11 (session 2026-03-11-001 — CLAUDE.md improvements)
 **Update instructions:** Edit this file at the end of each docs PR. Update any issue that was
 opened, closed, or changed severity during the session.
 
@@ -26,6 +26,12 @@ opened, closed, or changed severity during the session.
 | [#142](https://github.com/nobhri/azure-dbx-mock-platform/issues/142) | LOW | CI: add wheel build step to test-unit.yaml | Catch packaging issues before bundle deploy. |
 | [#143](https://github.com/nobhri/azure-dbx-mock-platform/issues/143) | LOW | CI: enable pytest-cov coverage reporting | pytest-cov already a dev dependency but unused in CI. |
 | [#144](https://github.com/nobhri/azure-dbx-mock-platform/issues/144) | LOW | Pipeline: add bronze schema validation at read time | Fail-fast guard for missing columns. |
+| [#146](https://github.com/nobhri/azure-dbx-mock-platform/issues/146) | LOW | CLAUDE.md: add Session Start / End checklists | Consolidate scattered session rules into ordered checklists. In PR #153. |
+| [#147](https://github.com/nobhri/azure-dbx-mock-platform/issues/147) | LOW | Standardize session file template in docs/sessions/README.md | Add required template with Outcome field. In PR #153. |
+| [#148](https://github.com/nobhri/azure-dbx-mock-platform/issues/148) | LOW | Fix duplicate session NNN numbering on 2026-03-10 | 12 files renamed; sequential order restored. In PR #153. |
+| [#149](https://github.com/nobhri/azure-dbx-mock-platform/issues/149) | LOW | Move Session File Naming rules from CLAUDE.md to docs/sessions/README.md | Keep CLAUDE.md lean. In PR #153. |
+| [#150](https://github.com/nobhri/azure-dbx-mock-platform/issues/150) | LOW | MEMORY.md: remove duplicate open issues table | Replace with pointer to status.md. In PR #153. |
+| [#151](https://github.com/nobhri/azure-dbx-mock-platform/issues/151) | LOW | CLAUDE.md: add Common Mistakes section | Known failure patterns as negative-example guardrails. In PR #153. |
 
 ---
 
