@@ -1,4 +1,4 @@
-# Session 2026-03-10-003 — Proposals Triage (Issue #112)
+# Session 2026-03-10-006 — Proposals Triage (Issue #112)
 
 **Date:** 2026-03-10
 **Branch:** docs/proposals-triage-112

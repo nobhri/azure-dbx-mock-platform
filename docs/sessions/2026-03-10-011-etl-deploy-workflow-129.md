@@ -1,4 +1,4 @@
-# Session 2026-03-10-007 — GH Actions ETL deploy workflow (#129)
+# Session 2026-03-10-011 — GH Actions ETL deploy workflow (#129)
 
 **Branch:** feature/129-etl-deploy-workflow
 **Issue:** #129
@@ -25,4 +25,4 @@
 ## Files changed
 
 - `.github/workflows/workload-etl.yaml` (new)
-- `docs/sessions/2026-03-10-007-etl-deploy-workflow-129.md` (this file)
+- `docs/sessions/2026-03-10-011-etl-deploy-workflow-129.md` (this file)

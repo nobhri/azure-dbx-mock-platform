@@ -1,4 +1,4 @@
-# Session: 2026-03-10-003 — Extract Production Considerations (#108)
+# Session: 2026-03-10-005 — Extract Production Considerations (#108)
 
 **Date:** 2026-03-10
 **Branch:** docs/prod-considerations-108

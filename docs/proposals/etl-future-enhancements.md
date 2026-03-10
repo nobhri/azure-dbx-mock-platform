@@ -4,7 +4,7 @@
 **Date:** 2026-03-10
 **Layer:** Data Engineering
 **Related ADRs:** ADR-003 (idempotency), ADR-004 (consumer access)
-**Origin:** Code review of `etl/` — session 2026-03-10-008
+**Origin:** Code review of `etl/` — session 2026-03-10-013
 
 ---
 

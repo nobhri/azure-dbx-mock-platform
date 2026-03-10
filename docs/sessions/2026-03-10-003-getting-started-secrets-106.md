@@ -1,4 +1,4 @@
-# Session 2026-03-10-002 — Fix GETTING_STARTED.md secrets table (Issue #106)
+# Session 2026-03-10-003 — Fix GETTING_STARTED.md secrets table (Issue #106)
 
 ## Goal
 Fix the prerequisites / secrets table in GETTING_STARTED.md:

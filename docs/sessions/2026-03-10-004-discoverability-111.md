@@ -1,4 +1,4 @@
-# Session 2026-03-10-003 — Discoverability (Issue #111)
+# Session 2026-03-10-004 — Discoverability (Issue #111)
 
 ## Goal
 
