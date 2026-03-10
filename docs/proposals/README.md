@@ -47,3 +47,5 @@ Proposed → Accepted → Closed      (implemented or superseded by a design doc
 | [sdlc-catalog-lookup.md](sdlc-catalog-lookup.md) | SDLC Catalog Lookup | Accepted — Phase 2 data engineering | 2026-03-05 |
 | [wheel-packaging.md](wheel-packaging.md) | Wheel Packaging | Accepted — Phase 2 data engineering; ADR-007 candidate pending | 2026-03-05 |
 | [data-engineering-implementation-plan.md](data-engineering-implementation-plan.md) | Data Engineering Implementation Plan | Accepted — consolidates open questions from 5 proposals above | 2026-03-10 |
+| [etl-short-term-improvements.md](etl-short-term-improvements.md) | ETL Short-Term Improvements | Accepted — gold-as-view, CI wheel build, coverage, bronze validation | 2026-03-10 |
+| [etl-future-enhancements.md](etl-future-enhancements.md) | ETL Future Enhancements | Proposed — medium/long-term roadmap items | 2026-03-10 |
