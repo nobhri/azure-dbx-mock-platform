@@ -1,6 +1,6 @@
 # Project Status Snapshot
 
-**Last updated:** 2026-03-10 (session 005 — ETL deploy workflow fixes)
+**Last updated:** 2026-03-10 (session 008 — ETL code review)
 **Update instructions:** Edit this file at the end of each docs PR. Update any issue that was
 opened, closed, or changed severity during the session.
 
@@ -22,6 +22,10 @@ opened, closed, or changed severity during the session.
 | [#110](https://github.com/nobhri/azure-dbx-mock-platform/issues/110) | MEDIUM | Add ADR annotations to README architecture diagram | Layer diagram has no cross-references to ADRs; reader must map manually. |
 | [#111](https://github.com/nobhri/azure-dbx-mock-platform/issues/111) | MEDIUM | Improve discoverability — link status.md, add sessions/ README | status.md not linked from README; sessions/ has no explanation for external readers. |
 | [#112](https://github.com/nobhri/azure-dbx-mock-platform/issues/112) | LOW | Triage proposed-state proposals | PR #70 confirmed merged (2026-03-06). 5 proposals triaged to Accepted in PR #121. |
+| [#141](https://github.com/nobhri/azure-dbx-mock-platform/issues/141) | MEDIUM | Gold layer: use view instead of table for daily_sales_by_region | Aligns with ADR-004; accepted in etl-short-term-improvements proposal. |
+| [#142](https://github.com/nobhri/azure-dbx-mock-platform/issues/142) | LOW | CI: add wheel build step to test-unit.yaml | Catch packaging issues before bundle deploy. |
+| [#143](https://github.com/nobhri/azure-dbx-mock-platform/issues/143) | LOW | CI: enable pytest-cov coverage reporting | pytest-cov already a dev dependency but unused in CI. |
+| [#144](https://github.com/nobhri/azure-dbx-mock-platform/issues/144) | LOW | Pipeline: add bronze schema validation at read time | Fail-fast guard for missing columns. |
 
 ---
 
