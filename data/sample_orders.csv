@@ -1,0 +1,11 @@
+order_id,customer_id,product_id,quantity,unit_price,order_date,region
+ord-001,cust-A1,PROD-001,5,49.99,2024-01-03,North
+ord-002,cust-B2,PROD-007,2,199.00,2024-01-03,South
+ord-003,cust-C3,PROD-012,10,12.50,2024-01-04,East
+ord-004,cust-D4,PROD-003,1,350.00,2024-01-04,West
+ord-005,cust-A1,PROD-005,3,75.00,2024-01-05,North
+ord-006,cust-E5,PROD-007,4,199.00,2024-01-05,South
+ord-007,cust-F6,PROD-015,8,22.00,2024-01-06,East
+ord-008,cust-G7,PROD-001,2,49.99,2024-01-06,West
+ord-009,cust-H8,PROD-009,6,88.50,2024-01-07,North
+ord-010,cust-I9,PROD-011,1,425.00,2024-01-07,South
