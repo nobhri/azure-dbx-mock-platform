@@ -18,10 +18,42 @@ YYYY-MM-DD-NNN-slug.md
 ```
 
 - `YYYY-MM-DD` — date of the session
-- `NNN` — zero-padded sequence within that date (001, 002, ...)
+- `NNN` — zero-padded 3-digit sequence within that date (001, 002, ...)
 - `slug` — short description of the session's focus
 
 **Example:** `2026-03-06-007-issue-80-dynamic-metastore-import.md`
+
+**Determining NNN:** Before creating a session file, glob `docs/sessions/YYYY-MM-DD-*.md` to find the highest existing NNN for today, then increment by one. Start at 001 if none exist.
+
+**Uniqueness:** Each session must have a unique NNN. When multiple sessions run in parallel on the same date, the branch name should include the NNN (e.g., `docs/2026-03-10-009-slug`) to surface conflicts early.
+
+## Standard Template
+
+Every session file must use this structure:
+
+```markdown
+# Session YYYY-MM-DD-NNN — <slug>
+
+**Branch:** <branch-name>
+**Issue:** #<number> (omit if not applicable)
+**PR:** #<number> (fill in when created; omit until then)
+**Outcome:** completed | partial | blocked
+
+## Objective
+What we set out to do.
+
+## What was done
+Summary of actions taken.
+
+## Decisions
+Any choices made and rationale. Omit this section if no decisions were made.
+
+## Lessons / Notes
+Insights for future sessions. Omit this section if nothing notable.
+
+## Artifacts
+- Files changed, issues created, PRs opened
+```
 
 ## Relationship to Other Docs
 
