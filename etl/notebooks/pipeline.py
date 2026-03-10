@@ -31,8 +31,7 @@ print(f"env = {env}")
 from mock_platform.catalog_lookup import get_catalog
 
 catalog = get_catalog(env)
-schema = "sales"
-print(f"catalog = {catalog}, schema = {schema}")
+print(f"catalog = {catalog}")
 
 # COMMAND ----------
 
@@ -43,8 +42,8 @@ print(f"catalog = {catalog}, schema = {schema}")
 
 from mock_platform.transform import clean_orders
 
-bronze_table = f"`{catalog}`.`{schema}`.`orders_bronze`"
-silver_table = f"`{catalog}`.`{schema}`.`orders_silver`"
+bronze_table = f"`{catalog}`.`bronze`.`orders_bronze`"
+silver_table = f"`{catalog}`.`silver`.`orders_silver`"
 
 print(f"Reading bronze: {bronze_table}")
 df_bronze = spark.table(bronze_table)
@@ -73,7 +72,7 @@ print("Silver write complete.")
 
 from mock_platform.transform import aggregate_daily_sales
 
-gold_table = f"`{catalog}`.`{schema}`.`daily_sales_by_region`"
+gold_table = f"`{catalog}`.`gold`.`daily_sales_by_region`"
 
 print(f"Reading silver: {silver_table}")
 df_silver_read = spark.table(silver_table)
