@@ -94,10 +94,10 @@ jobs:
           databricks bundle deploy --target ${{ steps.target.outputs.TARGET }} \
             --var "env=${{ steps.target.outputs.TARGET }}"
 
-      - name: Bundle run — etl-pipeline
+      - name: Bundle run — etl-e2e-test
         working-directory: etl
         run: |
-          databricks bundle run etl-pipeline \
+          databricks bundle run etl-e2e-test \
             --target ${{ steps.target.outputs.TARGET }} \
             --var "env=${{ steps.target.outputs.TARGET }}" \
             --no-wait=false
