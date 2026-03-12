@@ -67,9 +67,17 @@ TFSTATE_SA_ID="/subscriptions/<sub>/resourceGroups/rg-tfstate/providers/Microsof
 APP_ID=$(az ad app create --display-name "$APP_NAME" --query appId -o tsv)
 SP_OBJ_ID=$(az ad sp create --id "$APP_ID" --query id -o tsv)
 
-# ====== Federated Credential (GitHub OIDC) ======
-FC_JSON=$(printf '{"name":"github-%s-main","issuer":"https://token.actions.githubusercontent.com","subject":"repo:%s:ref:%s","audiences":["api://AzureADTokenExchange"]}' "$REPO" "$REPO" "$BRANCH")
+# ====== Federated Credentials (GitHub OIDC) ======
+# Credential names must be valid URI segments — replace / with - for the slug
+REPO_SLUG=$(echo "$REPO" | tr '/' '-')
+
+# push to main
+FC_JSON=$(printf '{"name":"github-%s-main","issuer":"https://token.actions.githubusercontent.com","subject":"repo:%s:ref:%s","audiences":["api://AzureADTokenExchange"]}' "$REPO_SLUG" "$REPO" "$BRANCH")
 az ad app federated-credential create --id "$APP_ID" --parameters "$FC_JSON"
+
+# pull_request — required for terraform plan to run on PRs
+FC_PR_JSON=$(printf '{"name":"github-%s-pull-request","issuer":"https://token.actions.githubusercontent.com","subject":"repo:%s:pull_request","audiences":["api://AzureADTokenExchange"]}' "$REPO_SLUG" "$REPO")
+az ad app federated-credential create --id "$APP_ID" --parameters "$FC_PR_JSON"
 
 # ====== RBAC assignments ======
 # Contributor at subscription scope
@@ -188,6 +196,7 @@ and required post-recreate grants, see:
 
 ## Common Pitfalls
 
+- `AADSTS700213: No matching federated identity record found` on PR runs → the `pull_request` federated credential is missing; add it with `az ad app federated-credential create` as shown in the OIDC setup section above
 - `403` on role assignment → Service Principal lacks **User Access Administrator**
 - Budget deployment fails → date must be >= current month's start
 - ADLS name conflict → Storage Account names must be globally unique and lowercase
