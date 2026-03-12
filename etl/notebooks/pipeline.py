@@ -49,6 +49,12 @@ silver_table = f"`{catalog}`.`silver`.`orders_silver`"
 print(f"Reading bronze: {bronze_table}")
 df_bronze = spark.table(bronze_table)
 
+required_columns = {"order_id", "customer_id", "product_id",
+                    "quantity", "unit_price", "order_date", "region"}
+missing = required_columns - set(df_bronze.columns)
+if missing:
+    raise ValueError(f"Bronze table missing columns: {missing}")
+
 df_silver = clean_orders(df_bronze)
 df_silver.printSchema()
 print(f"Silver row count: {df_silver.count()}")
@@ -85,8 +91,6 @@ GROUP BY region, order_date
 ORDER BY region, order_date
 """
 
-print(f"Dropping existing table if present: {gold_view}")
-spark.sql(f"DROP TABLE IF EXISTS {gold_view}")
 print(f"Creating gold view: {gold_view}")
 spark.sql(view_ddl)
 print("Gold view created.")
