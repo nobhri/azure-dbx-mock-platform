@@ -75,7 +75,7 @@ These require direct human action in Azure, GitHub, or Databricks — cannot be 
 
 | PR | Title | Status |
 |----|-------|--------|
-| [#156](https://github.com/nobhri/azure-dbx-mock-platform/pull/156) | fix(etl): bronze validation, remove DROP guard, pytest-cov | Open |
+| [#159](https://github.com/nobhri/azure-dbx-mock-platform/pull/159) | fix(ci): add OIDC PR credential runbook and tflint to workload workflows | Open — refs #40, #11 |
 
 ---
 
