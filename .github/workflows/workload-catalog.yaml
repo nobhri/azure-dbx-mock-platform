@@ -4,6 +4,7 @@ on:
     branches: [ "main" ]
     paths: [ "platform/**" ]
   workflow_dispatch: {}
+  workflow_call: {}
 
 concurrency:
   group: catalog-${{ github.event_name == 'push' && 'prod' || 'dev' }}
