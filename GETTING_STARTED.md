@@ -139,11 +139,27 @@ ALERT_EMAIL=<email for budget alert notifications>
 - Deploys: Unity Catalog Metastore, Workspace assignment, Storage Credential, External Location, Catalog, Schemas, Grants
 - State: `workload-tfstate/dbx.tfstate`
 
+### 4.5. Manual Grants — SP Prerequisites (required before step 5)
+
+After `workload-dbx` apply, the Service Principal needs two Unity Catalog metastore-level
+privileges that it cannot self-grant. Run the following **as the human metastore admin** in a
+Databricks SQL warehouse or notebook:
+
+```sql
+GRANT CREATE EXTERNAL LOCATION ON METASTORE TO '<SP_client_id>';
+GRANT CREATE CATALOG ON METASTORE TO '<SP_client_id>';
+```
+
+Replace `<SP_client_id>` with the value of the `AZURE_CLIENT_ID` GitHub repository secret.
+
+> These grants are lost on each destroy cycle and must be re-run after every recreate.
+> Full procedure: [docs/runbooks/post-destroy-grants.md](docs/runbooks/post-destroy-grants.md)
+
 ### 5. Workload — Catalog Layer
 
 - Trigger `workload-catalog.yaml`
 - Deploys: Unity Catalog catalog and schemas via Jinja2 + Python notebook (Asset Bundle)
-- **Must run after `workload-dbx` apply** — requires the External Location created in step 4
+- **Must run after `workload-dbx` apply and the step 4.5 manual grants** — requires both the External Location and the `CREATE CATALOG` privilege granted to the SP
 - If the External Location is missing, the workflow fails with `EXTERNAL_LOCATION_DOES_NOT_EXIST` before the bundle even runs (see Common Pitfalls)
 
 ### 6. Destroy and Recreate (optional)
@@ -181,6 +197,7 @@ and required post-recreate grants, see:
 - `Storage Credential 'uc-mi-credential' already exists` on workload-dbx apply → UC objects orphaned from a previous destroy (wrong order) — follow [Orphaned UC objects recovery](#orphaned-uc-objects-recovery)
 - `workload-dbx` apply fails after recreate with permission errors → re-grant `CREATE EXTERNAL LOCATION ON METASTORE` as metastore admin — see [docs/runbooks/post-destroy-grants.md](docs/runbooks/post-destroy-grants.md)
 - `workload-catalog` fails with `EXTERNAL_LOCATION_DOES_NOT_EXIST` → `workload-dbx` has not been applied yet; apply it first (step 4 must precede step 5)
+- `workload-catalog` fails with permission errors during catalog creation → SP is missing `CREATE CATALOG ON METASTORE`; run the step 4.5 manual grants before triggering the workflow — see [docs/runbooks/post-destroy-grants.md](docs/runbooks/post-destroy-grants.md)
 - **Do not run `terraform` from the repo root** — always use `-chdir=infra/<module>` (or let CI do it). Running terraform at the root creates a local `terraform.tfstate` in the repo root that is out of sync with the remote backend. The file is excluded by `.gitignore` but indicates an accidental manual run outside the intended module directory.
 
 ---
