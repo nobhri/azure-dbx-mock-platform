@@ -44,3 +44,6 @@ jobs:
 
       - name: Run unit tests
         run: pytest tests/unit/ -v --tb=short --cov=mock_platform --cov-report=term-missing --cov-fail-under=80
+
+      - name: Build wheel
+        run: pip install build && python -m build --wheel --outdir dist/
