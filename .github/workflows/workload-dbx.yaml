@@ -82,6 +82,14 @@ jobs:
             -backend-config="container_name=$TFSTATE_CONTAINER" \
             -backend-config="key=$TFSTATE_KEY"
 
+      - name: Setup tflint
+        uses: terraform-linters/setup-tflint@v4
+
+      - name: Run tflint
+        run: |
+          tflint --init --chdir=infra/workload-dbx
+          tflint --chdir=infra/workload-dbx
+
       # Discover and import an existing metastore into Terraform state if needed.
       # Handles the "failed-destroy recovery" case: if a previous destroy run failed
       # mid-way, the metastore may still exist in the account but no longer be in state.
