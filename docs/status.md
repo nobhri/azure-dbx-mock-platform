@@ -1,6 +1,6 @@
 # Project Status Snapshot
 
-**Last updated:** 2026-03-11 (session 2026-03-11-001 — CLAUDE.md improvements)
+**Last updated:** 2026-03-12 (session 2026-03-12-002 — issue-53-getting-started)
 **Update instructions:** Edit this file at the end of each docs PR. Update any issue that was
 opened, closed, or changed severity during the session.
 
@@ -11,7 +11,7 @@ opened, closed, or changed severity during the session.
 | Issue | Severity | Title | Notes |
 |-------|----------|-------|-------|
 | [#40](https://github.com/nobhri/azure-dbx-mock-platform/issues/40) | MEDIUM | OIDC not configured for pull_request subject | PR CI always fails Azure login. Fix: add `pull_request` federated credential in Entra ID. No code change needed. |
-| [#53](https://github.com/nobhri/azure-dbx-mock-platform/issues/53) | LOW | Document GRANT CREATE CATALOG prerequisite | Update GETTING_STARTED.md and post-destroy-grants runbook. Partially addressed by `docs/runbooks/post-destroy-grants.md`. |
+| [#53](https://github.com/nobhri/azure-dbx-mock-platform/issues/53) | LOW | Document GRANT CREATE CATALOG prerequisite | In PR #158. Added step 4.5 and pitfall entry to GETTING_STARTED.md; runbook was already complete. |
 | [#82](https://github.com/nobhri/azure-dbx-mock-platform/issues/82) | LOW | Test coverage gap: dynamic metastore import path not exercised in CI | Branch 3 ("Found existing metastore — importing") never triggered. Requires manual `terraform state rm` to test. See session-008 for procedure. |
 | [#11](https://github.com/nobhri/azure-dbx-mock-platform/issues/11) | LOW | Add tflint step to workload-azure.yaml and workload-dbx.yaml | Enhancement blocked historically by OIDC issue #40. |
 | [#105](https://github.com/nobhri/azure-dbx-mock-platform/issues/105) | HIGH | README Current Status and Known Issues stale vs status.md | "In Progress" items are done; Known Issues section diverges from this file. |

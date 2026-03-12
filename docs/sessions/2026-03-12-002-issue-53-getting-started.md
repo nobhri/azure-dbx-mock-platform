@@ -2,7 +2,7 @@
 
 **Branch:** docs/2026-03-12-002-issue-53-getting-started
 **Issue:** #53
-**PR:** (fill in when created)
+**PR:** #158
 **Outcome:** completed
 
 ## Objective
@@ -26,4 +26,5 @@ required between `workload-dbx` apply and `workload-catalog` apply.
 ## Artifacts
 
 - `GETTING_STARTED.md` — updated Deployment Steps and Common Pitfalls
-- PR opened (see PR field above)
+- `docs/sessions/2026-03-12-002-issue-53-getting-started.md` — this file
+- PR #158 opened
