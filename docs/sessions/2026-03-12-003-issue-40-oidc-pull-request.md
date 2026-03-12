@@ -2,8 +2,8 @@
 
 **Branch:** fix/2026-03-12-003-issue-40-oidc-pull-request
 **Issue:** #40
-**PR:** (fill in when created)
-**Outcome:** (fill in at end)
+**PR:** #160
+**Outcome:** completed
 
 ## Objective
 
@@ -11,16 +11,16 @@ Add OIDC federated credential for the `pull_request` subject to the Entra ID app
 
 ## What was done
 
-(fill in)
+- Updated `GETTING_STARTED.md` OIDC setup section to include a second `az ad app federated-credential create` call for the `pull_request` subject alongside the existing `main` branch credential
+- Added a Common Pitfalls entry for `AADSTS700213: No matching federated identity record found` pointing to the fix
+- User requested CLI option instead of Azure Portal steps — delivered as `az` CLI command in the existing script block
 
 ## Decisions
 
-(fill in)
-
-## Lessons / Notes
-
-(fill in)
+- Docs-only change: the actual credential must be added manually in Azure; no code change needed in CI workflows
+- CLI approach preferred over Azure Portal steps (user request)
 
 ## Artifacts
 
-- Files changed, issues created, PRs opened
+- `GETTING_STARTED.md` — updated OIDC setup section and Common Pitfalls
+- PR #160
