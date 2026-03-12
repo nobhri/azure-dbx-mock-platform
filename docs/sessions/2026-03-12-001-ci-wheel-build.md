@@ -2,7 +2,7 @@
 
 **Branch:** fix/2026-03-12-001-ci-wheel-build
 **Issue:** #142
-**PR:** (fill in when created)
+**PR:** #157
 **Outcome:** completed
 
 ## Objective
