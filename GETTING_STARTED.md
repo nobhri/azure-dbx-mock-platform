@@ -68,12 +68,15 @@ APP_ID=$(az ad app create --display-name "$APP_NAME" --query appId -o tsv)
 SP_OBJ_ID=$(az ad sp create --id "$APP_ID" --query id -o tsv)
 
 # ====== Federated Credentials (GitHub OIDC) ======
+# Credential names must be valid URI segments — replace / with - for the slug
+REPO_SLUG=$(echo "$REPO" | tr '/' '-')
+
 # push to main
-FC_JSON=$(printf '{"name":"github-%s-main","issuer":"https://token.actions.githubusercontent.com","subject":"repo:%s:ref:%s","audiences":["api://AzureADTokenExchange"]}' "$REPO" "$REPO" "$BRANCH")
+FC_JSON=$(printf '{"name":"github-%s-main","issuer":"https://token.actions.githubusercontent.com","subject":"repo:%s:ref:%s","audiences":["api://AzureADTokenExchange"]}' "$REPO_SLUG" "$REPO" "$BRANCH")
 az ad app federated-credential create --id "$APP_ID" --parameters "$FC_JSON"
 
 # pull_request — required for terraform plan to run on PRs
-FC_PR_JSON=$(printf '{"name":"github-%s-pull-request","issuer":"https://token.actions.githubusercontent.com","subject":"repo:%s:pull_request","audiences":["api://AzureADTokenExchange"]}' "$REPO" "$REPO")
+FC_PR_JSON=$(printf '{"name":"github-%s-pull-request","issuer":"https://token.actions.githubusercontent.com","subject":"repo:%s:pull_request","audiences":["api://AzureADTokenExchange"]}' "$REPO_SLUG" "$REPO")
 az ad app federated-credential create --id "$APP_ID" --parameters "$FC_PR_JSON"
 
 # ====== RBAC assignments ======
