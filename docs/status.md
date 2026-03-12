@@ -1,6 +1,6 @@
 # Project Status Snapshot
 
-**Last updated:** 2026-03-11 (session 2026-03-11-001 — CLAUDE.md improvements)
+**Last updated:** 2026-03-12 (session 2026-03-12-001 — bronze validation, DROP guard removal, pytest-cov)
 **Update instructions:** Edit this file at the end of each docs PR. Update any issue that was
 opened, closed, or changed severity during the session.
 
@@ -24,8 +24,9 @@ opened, closed, or changed severity during the session.
 | [#112](https://github.com/nobhri/azure-dbx-mock-platform/issues/112) | LOW | Triage proposed-state proposals | PR #70 confirmed merged (2026-03-06). 5 proposals triaged to Accepted in PR #121. |
 | [#141](https://github.com/nobhri/azure-dbx-mock-platform/issues/141) | MEDIUM | Gold layer: use view instead of table for daily_sales_by_region | Aligns with ADR-004; accepted in etl-short-term-improvements proposal. |
 | [#142](https://github.com/nobhri/azure-dbx-mock-platform/issues/142) | LOW | CI: add wheel build step to test-unit.yaml | Catch packaging issues before bundle deploy. |
-| [#143](https://github.com/nobhri/azure-dbx-mock-platform/issues/143) | LOW | CI: enable pytest-cov coverage reporting | pytest-cov already a dev dependency but unused in CI. |
-| [#144](https://github.com/nobhri/azure-dbx-mock-platform/issues/144) | LOW | Pipeline: add bronze schema validation at read time | Fail-fast guard for missing columns. |
+| [#143](https://github.com/nobhri/azure-dbx-mock-platform/issues/143) | LOW | CI: enable pytest-cov coverage reporting | pytest-cov already a dev dependency but unused in CI. In PR #156. |
+| [#144](https://github.com/nobhri/azure-dbx-mock-platform/issues/144) | LOW | Pipeline: add bronze schema validation at read time | Fail-fast guard for missing columns. In PR #156. |
+| [#155](https://github.com/nobhri/azure-dbx-mock-platform/issues/155) | LOW | etl: remove DROP TABLE IF EXISTS migration guard from gold view DDL | One-time guard from PR #154; safe to remove after CI confirmed view creation. In PR #156. |
 | [#146](https://github.com/nobhri/azure-dbx-mock-platform/issues/146) | LOW | CLAUDE.md: add Session Start / End checklists | Consolidate scattered session rules into ordered checklists. In PR #153. |
 | [#147](https://github.com/nobhri/azure-dbx-mock-platform/issues/147) | LOW | Standardize session file template in docs/sessions/README.md | Add required template with Outcome field. In PR #153. |
 | [#148](https://github.com/nobhri/azure-dbx-mock-platform/issues/148) | LOW | Fix duplicate session NNN numbering on 2026-03-10 | 12 files renamed; sequential order restored. In PR #153. |
@@ -74,7 +75,7 @@ These require direct human action in Azure, GitHub, or Databricks — cannot be 
 
 | PR | Title | Status |
 |----|-------|--------|
-_No open PRs._
+| [#156](https://github.com/nobhri/azure-dbx-mock-platform/pull/156) | fix(etl): bronze validation, remove DROP guard, pytest-cov | Open |
 
 ---
 
