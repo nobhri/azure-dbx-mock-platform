@@ -1,0 +1,29 @@
+name: orchestrator-up
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  azure:
+    uses: ./.github/workflows/workload-azure.yaml
+    secrets: inherit
+
+  dbx:
+    needs: azure
+    uses: ./.github/workflows/workload-dbx.yaml
+    secrets: inherit
+
+  catalog:
+    needs: dbx
+    uses: ./.github/workflows/workload-catalog.yaml
+    secrets: inherit
+
+  etl:
+    needs: catalog
+    uses: ./.github/workflows/workload-etl.yaml
+    with:
+      env: dev
+    secrets: inherit
