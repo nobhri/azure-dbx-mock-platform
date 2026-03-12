@@ -2,7 +2,7 @@
 
 **Branch:** fix/2026-03-12-001-bronze-validation-drop-guard
 **Issue:** #144, #155, #143
-**PR:** (fill in when created)
+**PR:** #156
 **Outcome:** completed
 
 ## Objective
@@ -29,3 +29,6 @@ Address three small pipeline and CI improvements:
 - `etl/notebooks/pipeline.py` — bronze schema validation added; DROP TABLE guard removed
 - `etl/notebooks/e2e_test.py` — DROP TABLE guard removed
 - `.github/workflows/test-unit.yaml` — pytest-cov flags added
+- `docs/sessions/2026-03-12-001-bronze-validation-drop-guard-cov.md` — this file
+- `docs/status.md` — added #155; marked #143, #144, #155 as in PR #156
+- PR #156 opened
