@@ -206,6 +206,34 @@ See [ADR-005](docs/adr/005-group-permissions.md) for full rationale.
 
 -----
 
+### ADR-006: Overwrite-Only Writes — Merge Pattern Deferred
+
+The ETL pipeline uses `saveAsTable(mode("overwrite"))` for the silver layer and
+`CREATE OR REPLACE VIEW` for the gold layer. `DeltaTable.merge()` (or SQL `MERGE INTO`) is
+explicitly deferred: a correct merge implementation requires upstream primary-key enforcement,
+a conflict-resolution strategy for late-arriving records, and an ingestion timestamp — none of
+which exist in the current pipeline. The conditions under which merge becomes necessary (fact
+tables, incremental loads, SCD Type 2) and the two candidate implementation paths (PySpark or
+SQL/Jinja2) are documented in the ADR.
+
+See [ADR-006](docs/adr/006-overwrite-only.md) for full rationale.
+
+-----
+
+### ADR-007: Wheel Packaging over `%run` for Shared ETL Code
+
+Shared ETL code (`transform.py`, `catalog_lookup.py`) is distributed to Databricks clusters
+as a Python wheel built via `pyproject.toml` and deployed via Asset Bundles `libraries`.
+`%run` and naive relative imports are rejected: `%run` path resolution breaks silently across
+environments, and Python relative imports do not work in Databricks notebooks (which are not
+executed as packages). The wheel build step runs in CI on every PR, catching packaging failures
+before they reach `bundle deploy`. Unit tests use an editable install on the GitHub Actions runner
+— no cluster required.
+
+See [ADR-007](docs/adr/007-wheel-packaging.md) for full rationale.
+
+-----
+
 ## Production Considerations
 
 These topics are not implemented in this mock environment due to cost and complexity constraints.
@@ -230,7 +258,7 @@ the full write-up.
 - Asset Bundles with environment-specific targets (`dev`, `staging`, `prod`)
 - SDLC variable parametrization across environments
 - GitHub Actions Workflow Dispatch for `dev`/`staging`
-- ADR documentation (5 ADRs)
+- ADR documentation (7 ADRs)
 - MVP ETL pipeline using `saveAsTable` (bronze → silver → gold confirmed 2026-03-10)
 
 ### In Progress
