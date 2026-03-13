@@ -63,4 +63,4 @@ Thumbs.db
 tmux-*.log
 
 # --- Claude Code ---
-.claude/
+.claude/settings.local.json
