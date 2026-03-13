@@ -34,13 +34,12 @@ Azure, Terraform, Databricks, Asset Bundles, Unity Catalog, Jinja2, GitHub Actio
 - Issues are closed manually by the human after CI/CD verification
 
 ## Autonomy Level
-- You may edit, commit, push, and create PRs without asking
-- You may view GitHub Actions run status and logs
-- You must STOP and wait for human review at PR creation
+- All git operations (fetch, worktree, add, commit, push, status, diff, log, merge) run without asking
+- Viewing GH Actions runs (`gh run view/list`), PRs (`gh pr view/list`), and issues (`gh issue view/list`) runs without asking
+- You must STOP and ask before creating a PR (`gh pr create`) or issue (`gh issue create`)
 - Never merge, approve, or delete anything
 - Never run `gh workflow run` or `gh api` to trigger workflows
 - Never run `gh pr merge` or `gh pr review --approve`
-- Your job ends at `gh pr create`
 
 ## Forbidden Commands
 - Never run: rm -rf, git push --force, terraform destroy
@@ -62,7 +61,9 @@ Run these steps in order before touching any files:
 
 1. Read `docs/status.md`
 2. Glob `docs/sessions/YYYY-MM-DD-*.md` to determine the next NNN for today
-3. Create worktree: `git worktree add .claude/worktrees/<branch> -b <branch>`
+3. Fetch and create worktree from latest main (prevents merge conflicts):
+   `git fetch origin main`
+   `git worktree add .claude/worktrees/<branch> -b <branch> origin/main`
    - Branch name should include the NNN (e.g., `docs/2026-03-10-009-slug`) to ensure uniqueness
 4. Create the session file from the template in `docs/sessions/README.md`
 
@@ -77,3 +78,4 @@ Before finishing:
 - **Duplicate session NNN**: Always glob before picking the next NNN. Parallel sessions on the same date must each check for the highest existing number independently.
 - **Forgetting status.md update**: If you opened or changed an issue, update `docs/status.md` before finishing the session.
 - **Skipping worktree creation**: Never edit files in the main working tree. All changes go through a worktree branch → PR → main.
+- **Branching from stale HEAD**: Always pass `origin/main` as the base when creating a worktree. Branching from local HEAD without fetching first causes merge conflicts when main has moved.
