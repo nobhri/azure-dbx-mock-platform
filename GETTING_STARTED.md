@@ -30,12 +30,19 @@ infra/
   bootstrap/            # One-time: creates tfstate Storage Account (local/ephemeral state)
   guardrails/           # Azure Budget + Alerts (remote backend, persistent)
   workload-azure/       # Azure layer: RG, ADLS, Access Connector, Workspace
-  workload-dbx/         # Databricks layer: UC Metastore, Catalog, Schemas, Grants
+  workload-dbx/         # Databricks layer: UC Metastore, Storage Credential, External Location
+platform/               # Catalog/Schema/Grants — Jinja2 + Python Notebook (Asset Bundle)
+etl/                    # ETL pipeline — bronze → silver → gold (Asset Bundle)
 .github/workflows/
   bootstrap.yaml
   guardrails.yaml
   workload-azure.yaml
   workload-dbx.yaml
+  workload-catalog.yaml
+  workload-etl.yaml
+  test-unit.yaml
+  orchestrator-up.yaml   # Full deploy sequence in one trigger (cost-optimized)
+  orchestrator-down.yaml # Full destroy sequence in one trigger (cost-optimized)
 ```
 
 **State separation:**
@@ -203,7 +210,7 @@ and required post-recreate grants, see:
 - **Storage Account names are hardcoded in two places — replace before deploying:**
   - Terraform state backend Storage Account
   - Unity Catalog root storage Storage Account
-- `Storage Credential 'uc-mi-credential' already exists` on workload-dbx apply → UC objects orphaned from a previous destroy (wrong order) — follow [Orphaned UC objects recovery](#orphaned-uc-objects-recovery)
+- `Storage Credential 'uc-mi-credential' already exists` on workload-dbx apply → UC objects orphaned from a previous destroy (wrong order) — follow the recovery procedure in [docs/runbooks/destroy-recreate.md](docs/runbooks/destroy-recreate.md)
 - `workload-dbx` apply fails after recreate with permission errors → re-grant `CREATE EXTERNAL LOCATION ON METASTORE` as metastore admin — see [docs/runbooks/post-destroy-grants.md](docs/runbooks/post-destroy-grants.md)
 - `workload-catalog` fails with `EXTERNAL_LOCATION_DOES_NOT_EXIST` → `workload-dbx` has not been applied yet; apply it first (step 4 must precede step 5)
 - `workload-catalog` fails with permission errors during catalog creation → SP is missing `CREATE CATALOG ON METASTORE`; run the step 4.5 manual grants before triggering the workflow — see [docs/runbooks/post-destroy-grants.md](docs/runbooks/post-destroy-grants.md)
