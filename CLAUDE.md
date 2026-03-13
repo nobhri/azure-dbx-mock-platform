@@ -19,7 +19,7 @@ Azure, Terraform, Databricks, Asset Bundles, Unity Catalog, Jinja2, GitHub Actio
 - Always create PR to main, never push to main directly
 - Always work inside a git worktree, never in the main working tree
 - At session start, create a worktree before touching any files:
-    `git worktree add .claude/worktrees/<branch-name> -b <branch-name>`
+    `git worktree add ../azure-dbx-mock-platform-worktrees/<branch-name> -b <branch-name>`
 - Each worktree gets its own branch; all worktrees target main via PR
 
 ## Command Style
