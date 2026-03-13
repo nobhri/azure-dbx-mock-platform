@@ -1,6 +1,6 @@
 # Project Status Snapshot
 
-**Last updated:** 2026-03-12 (session 2026-03-12-001 — bronze validation, DROP guard removal, pytest-cov)
+**Last updated:** 2026-03-12 (session 2026-03-12-003 — orchestrator workflow issues)
 **Update instructions:** Edit this file at the end of each docs PR. Update any issue that was
 opened, closed, or changed severity during the session.
 
@@ -27,6 +27,8 @@ opened, closed, or changed severity during the session.
 | [#143](https://github.com/nobhri/azure-dbx-mock-platform/issues/143) | LOW | CI: enable pytest-cov coverage reporting | pytest-cov already a dev dependency but unused in CI. In PR #156. |
 | [#144](https://github.com/nobhri/azure-dbx-mock-platform/issues/144) | LOW | Pipeline: add bronze schema validation at read time | Fail-fast guard for missing columns. In PR #156. |
 | [#155](https://github.com/nobhri/azure-dbx-mock-platform/issues/155) | LOW | etl: remove DROP TABLE IF EXISTS migration guard from gold view DDL | One-time guard from PR #154; safe to remove after CI confirmed view creation. In PR #156. |
+| [#162](https://github.com/nobhri/azure-dbx-mock-platform/issues/162) | MEDIUM | Add orchestrator workflows for cost-optimized deploy and destroy sequences | orchestrator-up / orchestrator-down to enable deploy-before-work, destroy-after model. ~85% cost reduction. |
+| [#163](https://github.com/nobhri/azure-dbx-mock-platform/issues/163) | LOW | Verify NAT Gateway and Serverless behavior after March 31 VNet default change | Check after first post-2026-03-31 destroy→recreate cycle. |
 | [#146](https://github.com/nobhri/azure-dbx-mock-platform/issues/146) | LOW | CLAUDE.md: add Session Start / End checklists | Consolidate scattered session rules into ordered checklists. In PR #153. |
 | [#147](https://github.com/nobhri/azure-dbx-mock-platform/issues/147) | LOW | Standardize session file template in docs/sessions/README.md | Add required template with Outcome field. In PR #153. |
 | [#148](https://github.com/nobhri/azure-dbx-mock-platform/issues/148) | LOW | Fix duplicate session NNN numbering on 2026-03-10 | 12 files renamed; sequential order restored. In PR #153. |

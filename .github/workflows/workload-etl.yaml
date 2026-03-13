@@ -13,6 +13,11 @@ on:
         options:
           - dev
           - prod
+  workflow_call:
+    inputs:
+      env:
+        type: string
+        default: dev
 
 concurrency:
   group: etl-${{ github.event_name == 'push' && 'dev' || inputs.env }}

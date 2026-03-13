@@ -1,0 +1,21 @@
+name: orchestrator-down
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  dbx:
+    uses: ./.github/workflows/workload-dbx.yaml
+    with:
+      destroy: true
+    secrets: inherit
+
+  azure:
+    needs: dbx
+    uses: ./.github/workflows/workload-azure.yaml
+    with:
+      destroy: true
+    secrets: inherit
