@@ -24,61 +24,45 @@ The design intentionally reflects a common scenario: **a low-to-mid maturity org
 
 ### Workspace & Catalog Structure (Target State)
 
+```mermaid
+flowchart LR
+    subgraph Platform["Platform Workspaces"]
+        WD[dev workspace]     --> CD[(dev catalog)]
+        WS[staging workspace] --> CS[(staging catalog)]
+        WP[prod workspace]    --> CP[(prod catalog)]
+    end
+
+    subgraph Consumer["Data Consumer Workspace — ADR-004"]
+        WC[consumer workspace] --> CC[(consumer catalog)]
+    end
+
+    CC -->|"Views reference<br>prod tables"| CP
 ```
-┌──────────────────────────────────────────────────────────────┐
-│  Platform Workspaces (Terraform-managed)                     │
-│                                                              │
-│  dev workspace      ──→  dev catalog                         │
-│  staging workspace  ──→  staging catalog                     │
-│  prod workspace     ──→  prod catalog                        │
-├──────────────────────────────────────────────────────────────┤
-│  Data Consumer Workspace (Terraform-managed)                 │
-│                                                              │
-│  consumer workspace ──→  prod catalog (direct)               │
-│                    or ──→  consumer catalog (View layer)     │
-│                    or ──→  consumer catalog (MV layer)       │
-│                             ↑ see ADR-004                    │
-├──────────────────────────────────────────────────────────────┤
-│  Identity & Access (EntraID-based)                           │
-│                                                              │
-│  EntraID Groups ──sync──→ Databricks                         │
-│  Permissions assigned to Groups only — never to individuals  │
-│  Group → Workspace/Catalog assignment: Platform Layer (SQL)  │
-│                             ↑ see ADR-005                    │
-└──────────────────────────────────────────────────────────────┘
+
+### Identity & Access (Target State)
+
+```mermaid
+flowchart LR
+    subgraph Identity["Identity & Access — ADR-005"]
+        EG[EntraID Groups] -->|sync| DB[Databricks Groups]
+    end
+    DB -->|"Workspace/Catalog assignment<br>via Platform Layer SQL"| WS[workspace]
+    WS --> CAT[(catalog)]
 ```
 
 > **Current status:** Single workspace, single catalog (MVP). Multi-workspace structure above is the target design. See [Current Status (MVP)](#current-status-mvp) for details.
 
 ### Layer Separation (within each Workspace)
 
-```
-┌──────────────────────────────────────────────────────┐
-│  Azure Layer                                         │
-│  Terraform — managed by Infrastructure team          │
-│  (VNet, Storage, RBAC, Databricks Workspace)         │
-│  ↑ see ADR-001 (Terraform scope), ADR-002 (OIDC)    │
-├──────────────────────────────────────────────────────┤
-│  Databricks Account Layer                            │
-│  Terraform — one-time setup only                     │
-│  (Metastore creation, Storage credential binding)    │
-│  ↑ see ADR-001 (Terraform scope)                     │
-├──────────────────────────────────────────────────────┤
-│  Catalog / Schema / Permission Layer                 │
-│  Jinja2 + Python Notebook — Data Platform team       │
-│  (DDL + GRANT, config-driven, run via CI/CD)         │
-│  ↑ see ADR-001 (not Terraform), ADR-005 (groups)    │
-├──────────────────────────────────────────────────────┤
-│  Job / Workflow Layer                                │
-│  Asset Bundles — Data Engineering team               │
-│  (Idempotent ETL jobs, target-based deployment)      │
-│  ↑ see ADR-003 (idempotency)                         │
-├──────────────────────────────────────────────────────┤
-│  Table / View DDL Layer                              │
-│  Jinja2 DDL (planned) / saveAsTable (MVP)            │
-│  (Owned by Data Engineering)                         │
-│  ↑ see ADR-004 (consumer access patterns)            │
-└──────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    A["Azure Layer<br>Terraform — Infrastructure team<br>VNet · Storage · RBAC · Databricks Workspace<br>ADR-001 · ADR-002"]
+    B["Databricks Account Layer<br>Terraform — one-time setup<br>Metastore creation · Storage credential binding<br>ADR-001"]
+    C["Catalog / Schema / Permission Layer<br>Jinja2 + Python Notebook — Data Platform team<br>DDL · GRANT · config-driven CI/CD<br>ADR-001 · ADR-005"]
+    D["Job / Workflow Layer<br>Asset Bundles — Data Engineering team<br>Idempotent ETL jobs · target-based deployment<br>ADR-003"]
+    E["Table / View DDL Layer<br>Jinja2 DDL (planned) / saveAsTable (MVP)<br>Data Engineering team<br>ADR-004"]
+
+    A --> B --> C --> D --> E
 ```
 
 ### Why This Layering?
@@ -109,20 +93,13 @@ See the [Architecture Decision Records](#architecture-decision-records-adr) sect
 
 ### Execution Path Policy
 
-```
-                        ┌──────────────┐
-                        │  Developer   │
-                        └──────┬───────┘
-                               │ git push / PR
-                               ▼
-                     ┌─────────────────┐
-                     │  GitHub Actions  │
-                     └────────┬────────┘
-              ┌───────────────┼───────────────┐
-              ▼               ▼               ▼
-           [dev]          [staging]          [prod]
-      Workflow Dispatch  Workflow Dispatch  main merge only
-      (manual OK)        (manual OK)       (no manual trigger)
+```mermaid
+flowchart TD
+    Dev[Developer]
+    Dev -->|git push / PR| GHA[GitHub Actions]
+    GHA --> DEV["dev<br>Workflow Dispatch<br>manual OK"]
+    GHA --> STG["staging<br>Workflow Dispatch<br>manual OK"]
+    GHA --> PRD["prod<br>main merge only<br>no manual trigger"]
 ```
 
 **Key constraints enforced by design:**
