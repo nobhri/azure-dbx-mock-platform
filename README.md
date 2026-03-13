@@ -36,6 +36,7 @@ flowchart LR
         CD[(dev catalog)]
         CS[(staging catalog)]
         CP[(prod catalog)]
+        CC[(consumer catalog)]
     end
 
     WC[consumer workspace — ADR-004]
@@ -43,8 +44,9 @@ flowchart LR
     WD --> CD
     WS --> CS
     WP --> CP
+    WC --> CC
 
-    WC -->|"Read gold views<br>in prod catalog"| CP
+    CC -->|"Views reference<br>prod tables"| CP
 ```
 
 ### Identity & Access (Target State)
@@ -168,10 +170,11 @@ See [ADR-003](docs/adr/003-idempotency.md) for full rationale.
 
 ### ADR-004: Data Consumer Workspace — View Layer Access Pattern
 
-Data consumers are isolated from the platform prod workspace via a dedicated consumer workspace
-that reads gold-layer Views directly from the prod catalog — no separate consumer catalog required.
-Materialized View isolation remains available for datasets where stricter lineage boundaries or
-query performance isolation justify the compute cost.
+Data consumers are isolated from the platform prod workspace via a View layer in a dedicated
+consumer catalog — a clean abstraction boundary without the cost overhead of Materialized Views.
+Direct prod catalog access and full Materialized View isolation remain available depending on
+governance requirements of each dataset. Materialized Views are intentionally avoided as the default
+due to compute cost.
 
 See [ADR-004](docs/adr/004-consumer-access.md) for full rationale.
 
