@@ -26,19 +26,17 @@ The design intentionally reflects a common scenario: **a low-to-mid maturity org
 
 ```mermaid
 flowchart LR
-    subgraph Platform["Platform Workspaces (Terraform-managed)"]
+    subgraph Platform["Platform Workspaces"]
         WD[dev workspace]     --> CD[(dev catalog)]
         WS[staging workspace] --> CS[(staging catalog)]
         WP[prod workspace]    --> CP[(prod catalog)]
     end
 
-    subgraph Consumer["Data Consumer Workspace (Terraform-managed) — ADR-004"]
-        WC[consumer workspace]
+    subgraph Consumer["Data Consumer Workspace — ADR-004"]
+        WC[consumer workspace] --> CC[(consumer catalog)]
     end
 
-    WC -->|direct| CP
-    WC -->|View layer| CC[("consumer catalog<br>Views")]
-    WC -->|MV layer| MC[("consumer catalog<br>MVs")]
+    CC -->|"Views reference<br>prod tables"| CP
 ```
 
 ### Identity & Access (Target State)
