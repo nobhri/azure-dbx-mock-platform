@@ -10,6 +10,11 @@ on:
       destroy:
         type: boolean
         default: false
+  workflow_call:
+    inputs:
+      destroy:
+        type: boolean
+        default: false
 
 concurrency:
   group: tf-workload-dbx
