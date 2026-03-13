@@ -37,13 +37,19 @@ flowchart LR
     end
 
     WC -->|direct| CP
-    WC -->|View layer| CC[(consumer catalog\nViews)]
-    WC -->|MV layer| MC[(consumer catalog\nMVs)]
+    WC -->|View layer| CC[("consumer catalog<br>Views")]
+    WC -->|MV layer| MC[("consumer catalog<br>MVs")]
+```
 
+### Identity & Access (Target State)
+
+```mermaid
+flowchart LR
     subgraph Identity["Identity & Access — ADR-005"]
         EG[EntraID Groups] -->|sync| DB[Databricks Groups]
-        DB -->|"Workspace/Catalog assignment\nvia Platform Layer SQL"| CP
     end
+    DB -->|"Workspace/Catalog assignment<br>via Platform Layer SQL"| WS[workspace]
+    WS --> CAT[(catalog)]
 ```
 
 > **Current status:** Single workspace, single catalog (MVP). Multi-workspace structure above is the target design. See [Current Status (MVP)](#current-status-mvp) for details.
@@ -52,30 +58,11 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    A["Azure Layer
-    Terraform — Infrastructure team
-    VNet · Storage · RBAC · Databricks Workspace
-    ADR-001 · ADR-002"]
-
-    B["Databricks Account Layer
-    Terraform — one-time setup
-    Metastore creation · Storage credential binding
-    ADR-001"]
-
-    C["Catalog / Schema / Permission Layer
-    Jinja2 + Python Notebook — Data Platform team
-    DDL · GRANT · config-driven CI/CD
-    ADR-001 · ADR-005"]
-
-    D["Job / Workflow Layer
-    Asset Bundles — Data Engineering team
-    Idempotent ETL jobs · target-based deployment
-    ADR-003"]
-
-    E["Table / View DDL Layer
-    Jinja2 DDL (planned) / saveAsTable (MVP)
-    Data Engineering team
-    ADR-004"]
+    A["Azure Layer<br>Terraform — Infrastructure team<br>VNet · Storage · RBAC · Databricks Workspace<br>ADR-001 · ADR-002"]
+    B["Databricks Account Layer<br>Terraform — one-time setup<br>Metastore creation · Storage credential binding<br>ADR-001"]
+    C["Catalog / Schema / Permission Layer<br>Jinja2 + Python Notebook — Data Platform team<br>DDL · GRANT · config-driven CI/CD<br>ADR-001 · ADR-005"]
+    D["Job / Workflow Layer<br>Asset Bundles — Data Engineering team<br>Idempotent ETL jobs · target-based deployment<br>ADR-003"]
+    E["Table / View DDL Layer<br>Jinja2 DDL (planned) / saveAsTable (MVP)<br>Data Engineering team<br>ADR-004"]
 
     A --> B --> C --> D --> E
 ```
@@ -112,15 +99,9 @@ See the [Architecture Decision Records](#architecture-decision-records-adr) sect
 flowchart TD
     Dev[Developer]
     Dev -->|git push / PR| GHA[GitHub Actions]
-    GHA --> DEV["dev
-    Workflow Dispatch
-    manual OK"]
-    GHA --> STG["staging
-    Workflow Dispatch
-    manual OK"]
-    GHA --> PRD["prod
-    main merge only
-    no manual trigger"]
+    GHA --> DEV["dev<br>Workflow Dispatch<br>manual OK"]
+    GHA --> STG["staging<br>Workflow Dispatch<br>manual OK"]
+    GHA --> PRD["prod<br>main merge only<br>no manual trigger"]
 ```
 
 **Key constraints enforced by design:**
