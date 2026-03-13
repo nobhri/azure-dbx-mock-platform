@@ -164,11 +164,17 @@ The remaining secrets depend on resources deployed in later steps — see [GitHu
 - State: `workload-tfstate/dbx.tfstate`
 - **Before this step:** set `DATABRICKS_ACCOUNT_ID` in GitHub Secrets (Databricks Account ID, found in your Databricks account console)
 
-### 5. Manual Grants — SP Prerequisites (required before step 6)
+### 5. Initial Metastore Setup (one-time, required before step 6)
 
 After `workload-dbx` apply, the Service Principal needs two Unity Catalog metastore-level
-privileges that it cannot self-grant. Run the following **as the human metastore admin** in a
-Databricks SQL warehouse or notebook:
+privileges that it cannot self-grant. Also, account-level groups must be created for UC grants.
+
+These steps are required **once** — the grants and groups are attached to the Metastore and
+persist as long as the Metastore exists.
+
+Full procedure: [docs/runbooks/initial-metastore-setup.md](docs/runbooks/initial-metastore-setup.md)
+
+**SP grants** (run as human metastore admin in a Databricks SQL warehouse or notebook):
 
 ```sql
 GRANT CREATE EXTERNAL LOCATION ON METASTORE TO '<SP_client_id>';
@@ -177,14 +183,11 @@ GRANT CREATE CATALOG ON METASTORE TO '<SP_client_id>';
 
 Replace `<SP_client_id>` with the value of the `AZURE_CLIENT_ID` GitHub Repo Secret.
 
-> These grants are lost on each destroy cycle and must be re-run after every recreate.
-> Full procedure: [docs/runbooks/post-destroy-grants.md](docs/runbooks/post-destroy-grants.md)
-
 ### 6. Workload — Catalog Layer
 
 - Trigger `workload-catalog.yaml`
 - Deploys: Unity Catalog catalog and schemas via Jinja2 + Python notebook (Asset Bundle)
-- **Must run after step 4 and the step 5 manual grants** — requires the External Location and `CREATE CATALOG` privilege granted to the SP
+- **Must run after step 4 and the step 5 initial setup** — requires the External Location and `CREATE CATALOG` privilege granted to the SP
 - If the External Location is missing, the workflow fails with `EXTERNAL_LOCATION_DOES_NOT_EXIST` before the bundle even runs (see Common Pitfalls)
 
 ### 7. Workload — ETL Layer
@@ -202,19 +205,18 @@ workflows for cost-optimized operation:
 - **`orchestrator-up.yaml`** — deploys the full stack in order: `workload-azure` → `workload-dbx` → `workload-catalog` → `workload-etl`
 - **`orchestrator-down.yaml`** — destroys in the correct order: `workload-dbx` → `workload-azure`
 
-> These are **not** a substitute for the first-time sequential steps above — manual grants (step 5)
-> are still required after each `orchestrator-down` + `orchestrator-up` cycle.
+> The UC Metastore and its grants persist across destroy/recreate cycles — no re-grants needed
+> after `orchestrator-down` + `orchestrator-up`.
 
 ### Destroy and Recreate
 
-For the full destroy/recreate procedure, including mandatory ordering, orphaned UC object recovery,
-and required post-recreate grants, see:
+For the full destroy/recreate procedure, including orchestrator usage, mandatory ordering, and
+orphaned UC object recovery, see:
 
 - [docs/runbooks/destroy-recreate.md](docs/runbooks/destroy-recreate.md)
-- [docs/runbooks/post-destroy-grants.md](docs/runbooks/post-destroy-grants.md)
 
 > **Order is mandatory.** Destroying in the wrong order orphans Unity Catalog objects in the
-> Metastore. Always destroy `workload-dbx` before `workload-azure`.
+> Metastore. Use `orchestrator-down` to avoid manual ordering mistakes.
 
 ---
 
@@ -236,19 +238,19 @@ and required post-recreate grants, see:
 - Budget deployment fails → date must be >= current month's start
 - ADLS name conflict → Storage Account names must be globally unique and lowercase
 - `Storage Credential 'uc-mi-credential' already exists` on workload-dbx apply → UC objects orphaned from a previous destroy (wrong order) — follow [docs/runbooks/destroy-recreate.md](docs/runbooks/destroy-recreate.md)
-- `workload-dbx` apply fails after recreate with permission errors → re-grant `CREATE EXTERNAL LOCATION ON METASTORE` as metastore admin — see [docs/runbooks/post-destroy-grants.md](docs/runbooks/post-destroy-grants.md)
+- `workload-dbx` apply fails after recreate with permission errors → SP is missing `CREATE EXTERNAL LOCATION ON METASTORE`; run step 5 initial metastore setup — see [docs/runbooks/initial-metastore-setup.md](docs/runbooks/initial-metastore-setup.md)
 - `workload-catalog` fails with `EXTERNAL_LOCATION_DOES_NOT_EXIST` → `workload-dbx` has not been applied yet; apply it first (step 4 must precede step 6)
-- `workload-catalog` fails with permission errors during catalog creation → SP is missing `CREATE CATALOG ON METASTORE`; run the step 5 manual grants before triggering the workflow — see [docs/runbooks/post-destroy-grants.md](docs/runbooks/post-destroy-grants.md)
+- `workload-catalog` fails with permission errors during catalog creation → SP is missing `CREATE CATALOG ON METASTORE`; run step 5 initial metastore setup — see [docs/runbooks/initial-metastore-setup.md](docs/runbooks/initial-metastore-setup.md)
 - **Do not run `terraform` from the repo root** — always use `-chdir=infra/<module>` (or let CI do it). Running terraform at the root creates a local `terraform.tfstate` in the repo root that is out of sync with the remote backend. The file is excluded by `.gitignore` but indicates an accidental manual run outside the intended module directory.
 
 ---
 
 ## Definition of Done
 
-- Clone → Bootstrap → Guardrails → Workload-Azure → Workload-DBX → manual SP grants → Workload-Catalog → Workload-ETL → bronze/silver/gold tables confirmed in workspace
+- Clone → Bootstrap → Guardrails → Workload-Azure → Workload-DBX → initial metastore setup → Workload-Catalog → Workload-ETL → bronze/silver/gold tables confirmed in workspace
 - All workflows run via GitHub Actions — no local Terraform or Databricks CLI execution required
 - Destroy cleans ephemeral layers (azure + dbx); guardrails and state backend remain intact
-- After each destroy/recreate, SP grants (step 5) re-applied and `orchestrator-up` restores the full stack
+- After each destroy/recreate, `orchestrator-up` restores the full stack (no re-grants needed)
 
 ---
 
