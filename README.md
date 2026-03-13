@@ -263,12 +263,7 @@ the full write-up.
 
 ### Deploying This Yourself
 
-Two GitHub repository secrets must be set before CI will succeed:
-
-- `ADLS_STORAGE_NAME` — name of the Storage Account used as Unity Catalog root storage
-- `TFSTATE_SA_UNIQ` — unique suffix of the Terraform state Storage Account name (`st<UNIQ>tfstate`)
-
-Full setup instructions, common pitfalls, and the destroy/recreate procedure are in [GETTING_STARTED.md](./GETTING_STARTED.md).
+Full setup instructions, required secrets, common pitfalls, and the destroy/recreate procedure are in [GETTING_STARTED.md](./GETTING_STARTED.md).
 
 -----
 
