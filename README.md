@@ -27,14 +27,24 @@ The design intentionally reflects a common scenario: **a low-to-mid maturity org
 ```mermaid
 flowchart LR
     subgraph Platform["Platform Workspaces"]
-        WD[dev workspace]     --> CD[(dev catalog)]
-        WS[staging workspace] --> CS[(staging catalog)]
-        WP[prod workspace]    --> CP[(prod catalog)]
+        WD[dev workspace]
+        WS[staging workspace]
+        WP[prod workspace]
     end
 
-    subgraph Consumer["Data Consumer Workspace — ADR-004"]
-        WC[consumer workspace] --> CC[(consumer catalog)]
+    subgraph UC["Unity Catalog — Metastore-scoped"]
+        CD[(dev catalog)]
+        CS[(staging catalog)]
+        CP[(prod catalog)]
+        CC[(consumer catalog)]
     end
+
+    WC[consumer workspace — ADR-004]
+
+    WD --> CD
+    WS --> CS
+    WP --> CP
+    WC --> CC
 
     CC -->|"Views reference<br>prod tables"| CP
 ```
