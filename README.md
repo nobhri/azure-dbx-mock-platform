@@ -27,16 +27,24 @@ The design intentionally reflects a common scenario: **a low-to-mid maturity org
 ```mermaid
 flowchart LR
     subgraph Platform["Platform Workspaces"]
-        WD[dev workspace]     --> CD[(dev catalog)]
-        WS[staging workspace] --> CS[(staging catalog)]
-        WP[prod workspace]    --> CP[(prod catalog)]
+        WD[dev workspace]
+        WS[staging workspace]
+        WP[prod workspace]
     end
 
-    subgraph Consumer["Data Consumer Workspace — ADR-004"]
-        WC[consumer workspace] --> CC[(consumer catalog)]
+    subgraph UC["Unity Catalog — Metastore-scoped"]
+        CD[(dev catalog)]
+        CS[(staging catalog)]
+        CP[(prod catalog)]
     end
 
-    CC -->|"Views reference<br>prod tables"| CP
+    WC[consumer workspace — ADR-004]
+
+    WD --> CD
+    WS --> CS
+    WP --> CP
+
+    WC -->|"Read gold views<br>in prod catalog"| CP
 ```
 
 ### Identity & Access (Target State)
@@ -160,11 +168,10 @@ See [ADR-003](docs/adr/003-idempotency.md) for full rationale.
 
 ### ADR-004: Data Consumer Workspace — View Layer Access Pattern
 
-Data consumers are isolated from the platform prod workspace via a View layer in a dedicated
-consumer catalog — a clean abstraction boundary without the cost overhead of Materialized Views.
-Direct prod catalog access and full Materialized View isolation remain available depending on
-governance requirements of each dataset. Materialized Views are intentionally avoided as the default
-due to compute cost.
+Data consumers are isolated from the platform prod workspace via a dedicated consumer workspace
+that reads gold-layer Views directly from the prod catalog — no separate consumer catalog required.
+Materialized View isolation remains available for datasets where stricter lineage boundaries or
+query performance isolation justify the compute cost.
 
 See [ADR-004](docs/adr/004-consumer-access.md) for full rationale.
 
