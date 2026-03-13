@@ -261,19 +261,9 @@ the full write-up.
 - ADR documentation (7 ADRs)
 - MVP ETL pipeline using `saveAsTable` (bronze → silver → gold confirmed 2026-03-10)
 
-### In Progress
+### Deploying This Yourself
 
-- README finalization for public release
-
-### Known Issues
-
-- **Destroy order matters:** Always destroy `workload-dbx` before `workload-azure`. Destroying Azure first leaves Unity Catalog account-scope objects (`uc-mi-credential`, `uc-root-location`) orphaned. `force_destroy = true` on the metastore (PR [#50](https://github.com/nobhri/azure-dbx-mock-platform/pull/50)) now cascade-deletes notebook-created catalogs automatically — manual UC cleanup is no longer required when the correct destroy order is followed.
-- **Post-destroy manual grants required:** After each full destroy + recreate cycle, the metastore admin must re-run both grants manually (the SP cannot self-grant account-level UC privileges):
-  - `GRANT CREATE EXTERNAL LOCATION ON METASTORE TO '<SP_client_id>';`
-  - `GRANT CREATE CATALOG ON METASTORE TO '<SP_client_id>';`
-  - See [runbooks/post-destroy-grants.md](docs/runbooks/post-destroy-grants.md) for the full procedure.
-
-> **Deploying this yourself?** See [GETTING_STARTED.md](GETTING_STARTED.md) for prerequisites, required secrets, and step-by-step setup instructions.
+Full setup instructions, required secrets, common pitfalls, and the destroy/recreate procedure are in [GETTING_STARTED.md](./GETTING_STARTED.md).
 
 -----
 
@@ -345,7 +335,7 @@ Detailed write-ups on specific decisions:
 **Nobuaki Hirai** — Data Platform Architect / Data Engineer  
 Working at the intersection of cloud infrastructure, data governance, and organizational constraints.
 
-[GitHub](https://github.com/nobhri)  · [LinkedIn](https://linkedin.com/)  · [Blog](https://platform-notes.hashnode.dev)
+[GitHub](https://github.com/nobhri)  · [LinkedIn](https://www.linkedin.com/in/nobuaki-hirai-3776131b3)  · [Blog](https://platform-notes.hashnode.dev)
 
 
 ---
