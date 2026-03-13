@@ -78,6 +78,7 @@ These require direct human action in Azure, GitHub, or Databricks — cannot be 
 | PR | Title | Status |
 |----|-------|--------|
 | [#159](https://github.com/nobhri/azure-dbx-mock-platform/pull/159) | fix(ci): add OIDC PR credential runbook and tflint to workload workflows | Open — refs #40, #11 |
+| [#165](https://github.com/nobhri/azure-dbx-mock-platform/pull/165) | feat(ci): add orchestrator-up and orchestrator-down workflows | Open — refs #162 |
 
 ---
 
