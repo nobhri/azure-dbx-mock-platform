@@ -9,17 +9,10 @@
 - Azure subscription
 - GitHub repository (public or private; **no secrets in repo**)
 - Azure CLI and permissions to create App Registrations
-- The following GitHub **Repo Secrets**:
 
-| Secret | Description |
-| --- | --- |
-| `AZURE_TENANT_ID` | Entra ID tenant ID |
-| `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
-| `AZURE_CLIENT_ID` | App registration client ID (created below) |
-| `TFSTATE_SA_UNIQ` | Short unique suffix for state Storage Account name |
-| `ADLS_STORAGE_NAME` | Name of the ADLS Gen2 Storage Account created by `workload-azure` |
-| `DATABRICKS_ACCOUNT_ID` | Databricks Account ID (for Unity Catalog setup) |
-| `ALERT_EMAIL` | Email address for budget alert notifications (used by `guardrails`) |
+> Several GitHub Secrets (e.g., `ADLS_STORAGE_NAME`, `DATABRICKS_ACCOUNT_ID`) are only available
+> after certain deployment steps complete. A full reference of all required secrets and when to set
+> them is at the end of this document: [GitHub Secrets Reference](#github-secrets-reference).
 
 ---
 
@@ -29,13 +22,28 @@
 infra/
   bootstrap/            # One-time: creates tfstate Storage Account (local/ephemeral state)
   guardrails/           # Azure Budget + Alerts (remote backend, persistent)
-  workload-azure/       # Azure layer: RG, ADLS, Access Connector, Workspace
-  workload-dbx/         # Databricks layer: UC Metastore, Catalog, Schemas, Grants
+  workload-azure/       # Azure layer: RG, ADLS, Access Connector, Databricks Workspace
+  workload-dbx/         # Databricks layer: UC Metastore, Storage Credential, External Location
+platform/
+  configs/              # Jinja2 environment configs (catalog/schema definitions)
+  notebooks/            # Python notebook for catalog/schema provisioning
+  templates/            # Jinja2 SQL templates
+  databricks.yml        # Asset Bundle definition (workload-catalog)
+etl/
+  src/                  # PySpark pipeline source (bronze/silver/gold)
+  notebooks/            # ETL notebooks
+  resources/            # Bundle job resources
+  databricks.yml        # Asset Bundle definition (workload-etl)
 .github/workflows/
-  bootstrap.yaml
-  guardrails.yaml
-  workload-azure.yaml
-  workload-dbx.yaml
+  bootstrap.yaml        # One-time tfstate backend setup
+  guardrails.yaml       # Azure Budget + Alerts
+  workload-azure.yaml   # Azure infrastructure
+  workload-dbx.yaml     # Databricks + UC Metastore
+  workload-catalog.yaml # Unity Catalog: catalog, schemas, groups, grants (Asset Bundle)
+  workload-etl.yaml     # ETL pipeline: deploy + run via Asset Bundle
+  test-unit.yaml        # Python unit tests (CI on PR)
+  orchestrator-up.yaml  # Full stack deploy (azure → dbx → catalog → etl, in order)
+  orchestrator-down.yaml # Full stack destroy (dbx → azure, in order)
 ```
 
 **State separation:**
@@ -47,6 +55,8 @@ infra/
 | `dbx.tfstate` | Databricks layer | Deploy/destroy cycle |
 
 Each state file locks independently, allowing concurrent workflow runs.
+
+> `workload-catalog` and `workload-etl` use Databricks Asset Bundles — no Terraform state.
 
 ---
 
@@ -106,27 +116,31 @@ echo "APP_ID (client-id): $APP_ID"
 echo "TENANT: $TENANT_ID  SUB: $SUB_ID"
 ```
 
-Then add these to your GitHub **Repo Secrets**:
+Add these three secrets to your GitHub **Repo Secrets** now (values are available immediately):
 
-```
-AZURE_TENANT_ID=$TENANT_ID
-AZURE_SUBSCRIPTION_ID=$SUB_ID
-AZURE_CLIENT_ID=$APP_ID
-TFSTATE_SA_UNIQ=<short unique suffix>
-ADLS_STORAGE_NAME=<your ADLS Gen2 Storage Account name>
-DATABRICKS_ACCOUNT_ID=<your Databricks Account ID>
-ALERT_EMAIL=<email for budget alert notifications>
-```
+| Secret | Value |
+|---|---|
+| `AZURE_TENANT_ID` | `$TENANT_ID` |
+| `AZURE_SUBSCRIPTION_ID` | `$SUB_ID` |
+| `AZURE_CLIENT_ID` | `$APP_ID` |
+
+The remaining secrets depend on resources deployed in later steps — see [GitHub Secrets Reference](#github-secrets-reference).
 
 ---
 
 ## Deployment Steps
+
+> **Step-by-step execution is required.** Some GitHub Secrets are not available at the start
+> (e.g., `ADLS_STORAGE_NAME` only exists after `workload-azure` completes, and
+> `DATABRICKS_ACCOUNT_ID` requires your Databricks Account to be set up). Run each step, set any
+> new secrets, then proceed to the next.
 
 ### 1. Bootstrap (one-time)
 
 - Trigger `bootstrap.yaml` manually (workflow dispatch)
 - Creates the Terraform state Resource Group, Storage Account, and containers
 - Uses local/ephemeral state — not stored remotely
+- **After this step:** set `TFSTATE_SA_UNIQ` in GitHub Secrets (the unique suffix you chose)
 
 ### 2. Guardrails
 
@@ -134,52 +148,75 @@ ALERT_EMAIL=<email for budget alert notifications>
 - Deploys Azure Budget + Alert Rules at subscription scope
 - State: `guardrails-tfstate/guardrails.tfstate`
 - **Not destroyed** in teardown — persists across deploy/destroy cycles
+- **Before this step:** set `ALERT_EMAIL` in GitHub Secrets
 
 ### 3. Workload — Azure Layer
 
 - Trigger `workload-azure.yaml`
 - Deploys: Resource Group, ADLS Gen2 containers, Access Connector (Managed Identity), Databricks Workspace, RBAC assignments
 - State: `workload-tfstate/azure.tfstate`
+- **After this step:** set `ADLS_STORAGE_NAME` in GitHub Secrets (ADLS Gen2 account name created by this workflow)
 
 ### 4. Workload — Databricks Layer
 
 - Trigger `workload-dbx.yaml`
-- Deploys: Unity Catalog Metastore, Workspace assignment, Storage Credential, External Location, Catalog, Schemas, Grants
+- Deploys: Unity Catalog Metastore, Workspace assignment, Storage Credential, External Location
 - State: `workload-tfstate/dbx.tfstate`
+- **Before this step:** set `DATABRICKS_ACCOUNT_ID` in GitHub Secrets (Databricks Account ID, found in your Databricks account console)
 
-### 4.5. Manual Grants — SP Prerequisites (required before step 5)
+### 5. Initial Metastore Setup (one-time, required before step 6)
 
 After `workload-dbx` apply, the Service Principal needs two Unity Catalog metastore-level
-privileges that it cannot self-grant. Run the following **as the human metastore admin** in a
-Databricks SQL warehouse or notebook:
+privileges that it cannot self-grant. Also, account-level groups must be created for UC grants.
+
+These steps are required **once** — the grants and groups are attached to the Metastore and
+persist as long as the Metastore exists.
+
+Full procedure: [docs/runbooks/initial-metastore-setup.md](docs/runbooks/initial-metastore-setup.md)
+
+**SP grants** (run as human metastore admin in a Databricks SQL warehouse or notebook):
 
 ```sql
 GRANT CREATE EXTERNAL LOCATION ON METASTORE TO '<SP_client_id>';
 GRANT CREATE CATALOG ON METASTORE TO '<SP_client_id>';
 ```
 
-Replace `<SP_client_id>` with the value of the `AZURE_CLIENT_ID` GitHub repository secret.
+Replace `<SP_client_id>` with the value of the `AZURE_CLIENT_ID` GitHub Repo Secret.
 
-> These grants are lost on each destroy cycle and must be re-run after every recreate.
-> Full procedure: [docs/runbooks/post-destroy-grants.md](docs/runbooks/post-destroy-grants.md)
-
-### 5. Workload — Catalog Layer
+### 6. Workload — Catalog Layer
 
 - Trigger `workload-catalog.yaml`
 - Deploys: Unity Catalog catalog and schemas via Jinja2 + Python notebook (Asset Bundle)
-- **Must run after `workload-dbx` apply and the step 4.5 manual grants** — requires both the External Location and the `CREATE CATALOG` privilege granted to the SP
+- **Must run after step 4 and the step 5 initial setup** — requires the External Location and `CREATE CATALOG` privilege granted to the SP
 - If the External Location is missing, the workflow fails with `EXTERNAL_LOCATION_DOES_NOT_EXIST` before the bundle even runs (see Common Pitfalls)
 
-### 6. Destroy and Recreate (optional)
+### 7. Workload — ETL Layer
 
-For the full destroy/recreate procedure, including mandatory ordering, orphaned UC object recovery,
-and required post-recreate grants, see:
+- Trigger `workload-etl.yaml` (workflow dispatch, select `dev` or `prod`)
+- Also triggers automatically on push to `main` when files under `etl/` change
+- Deploys and runs the ETL pipeline: bronze → silver → gold layers via Databricks Asset Bundle
+- **Must run after step 6** — requires the catalog and schemas to exist
+
+### 8. Orchestrator Workflows (after initial setup)
+
+Once the full stack has been deployed at least once and all secrets are set, use the orchestrator
+workflows for cost-optimized operation:
+
+- **`orchestrator-up.yaml`** — deploys the full stack in order: `workload-azure` → `workload-dbx` → `workload-catalog` → `workload-etl`
+- **`orchestrator-down.yaml`** — destroys in the correct order: `workload-dbx` → `workload-azure`
+
+> The UC Metastore and its grants persist across destroy/recreate cycles — no re-grants needed
+> after `orchestrator-down` + `orchestrator-up`.
+
+### Destroy and Recreate
+
+For the full destroy/recreate procedure, including orchestrator usage, mandatory ordering, and
+orphaned UC object recovery, see:
 
 - [docs/runbooks/destroy-recreate.md](docs/runbooks/destroy-recreate.md)
-- [docs/runbooks/post-destroy-grants.md](docs/runbooks/post-destroy-grants.md)
 
 > **Order is mandatory.** Destroying in the wrong order orphans Unity Catalog objects in the
-> Metastore. Always destroy `workload-dbx` before `workload-azure`.
+> Metastore. Use `orchestrator-down` to avoid manual ordering mistakes.
 
 ---
 
@@ -200,36 +237,34 @@ and required post-recreate grants, see:
 - `403` on role assignment → Service Principal lacks **User Access Administrator**
 - Budget deployment fails → date must be >= current month's start
 - ADLS name conflict → Storage Account names must be globally unique and lowercase
-- **Storage Account names are hardcoded in two places — replace before deploying:**
-  - Terraform state backend Storage Account
-  - Unity Catalog root storage Storage Account
-- `Storage Credential 'uc-mi-credential' already exists` on workload-dbx apply → UC objects orphaned from a previous destroy (wrong order) — follow [Orphaned UC objects recovery](#orphaned-uc-objects-recovery)
-- `workload-dbx` apply fails after recreate with permission errors → re-grant `CREATE EXTERNAL LOCATION ON METASTORE` as metastore admin — see [docs/runbooks/post-destroy-grants.md](docs/runbooks/post-destroy-grants.md)
-- `workload-catalog` fails with `EXTERNAL_LOCATION_DOES_NOT_EXIST` → `workload-dbx` has not been applied yet; apply it first (step 4 must precede step 5)
-- `workload-catalog` fails with permission errors during catalog creation → SP is missing `CREATE CATALOG ON METASTORE`; run the step 4.5 manual grants before triggering the workflow — see [docs/runbooks/post-destroy-grants.md](docs/runbooks/post-destroy-grants.md)
+- `Storage Credential 'uc-mi-credential' already exists` on workload-dbx apply → UC objects orphaned from a previous destroy (wrong order) — follow [docs/runbooks/destroy-recreate.md](docs/runbooks/destroy-recreate.md)
+- `workload-dbx` apply fails after recreate with permission errors → SP is missing `CREATE EXTERNAL LOCATION ON METASTORE`; run step 5 initial metastore setup — see [docs/runbooks/initial-metastore-setup.md](docs/runbooks/initial-metastore-setup.md)
+- `workload-catalog` fails with `EXTERNAL_LOCATION_DOES_NOT_EXIST` → `workload-dbx` has not been applied yet; apply it first (step 4 must precede step 6)
+- `workload-catalog` fails with permission errors during catalog creation → SP is missing `CREATE CATALOG ON METASTORE`; run step 5 initial metastore setup — see [docs/runbooks/initial-metastore-setup.md](docs/runbooks/initial-metastore-setup.md)
 - **Do not run `terraform` from the repo root** — always use `-chdir=infra/<module>` (or let CI do it). Running terraform at the root creates a local `terraform.tfstate` in the repo root that is out of sync with the remote backend. The file is excluded by `.gitignore` but indicates an accidental manual run outside the intended module directory.
-
----
-
-## .gitignore Recommendations
-
-```
-*.tfvars
-*.auto.tfvars
-.terraform/
-*.tfstate*
-*.tfstate.backup
-.env*
-.ipynb_checkpoints/
-.venv/
-.bundle/
-.databricks/
-```
 
 ---
 
 ## Definition of Done
 
-- Clone → Bootstrap → Guardrails → Workload-Azure → Workload-DBX → Unity Catalog attached
-- Entire workflow runs via GitHub Actions — no local Terraform execution required
-- Destroy cleans ephemeral layers; guardrails and state backend remain intact
+- Clone → Bootstrap → Guardrails → Workload-Azure → Workload-DBX → initial metastore setup → Workload-Catalog → Workload-ETL → bronze/silver/gold tables confirmed in workspace
+- All workflows run via GitHub Actions — no local Terraform or Databricks CLI execution required
+- Destroy cleans ephemeral layers (azure + dbx); guardrails and state backend remain intact
+- After each destroy/recreate, `orchestrator-up` restores the full stack (no re-grants needed)
+
+---
+
+## GitHub Secrets Reference
+
+The following secrets must be configured in your GitHub **Repo Secrets**. Secrets marked with a
+deployment step are not available until that step completes.
+
+| Secret | When to set | Description |
+|---|---|---|
+| `AZURE_TENANT_ID` | After OIDC setup | Entra ID tenant ID |
+| `AZURE_SUBSCRIPTION_ID` | After OIDC setup | Azure subscription ID |
+| `AZURE_CLIENT_ID` | After OIDC setup | App registration client ID |
+| `TFSTATE_SA_UNIQ` | After Bootstrap (step 1) | Short unique suffix for state Storage Account name |
+| `ALERT_EMAIL` | Before Guardrails (step 2) | Email address for budget alert notifications |
+| `ADLS_STORAGE_NAME` | After Workload-Azure (step 3) | Name of the ADLS Gen2 Storage Account |
+| `DATABRICKS_ACCOUNT_ID` | Before Workload-DBX (step 4) | Databricks Account ID (for Unity Catalog setup) |
