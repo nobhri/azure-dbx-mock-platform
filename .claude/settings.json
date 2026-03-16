@@ -6,6 +6,7 @@
       "Bash(git status *)",
       "Bash(git diff *)",
       "Bash(git log *)",
+      "Bash(git -C ../azure-dbx-mock-platform-worktrees/** *)",
       "Bash(gh run view *)",
       "Bash(gh run list *)",
       "Bash(gh pr view *)",
