@@ -308,6 +308,10 @@ Detailed write-ups on specific decisions:
   *A design journal for Terraform + Databricks + GitHub Actions: Part 2 — Catalog & Schema*
   Repo snapshot: [blog/cicd-part2](https://github.com/nobhri/azure-dbx-mock-platform/tree/blog/cicd-part2)
 
+- [x] **[Terraform & Databricks CI/CD Part 3: The Design Decisions Behind the Job Layer](https://platform-notes.hashnode.dev/terraform-databricks-ci-cd-part-3-the-design-decisions-behind-the-job-layer)**
+  *The design decisions behind a testable ETL pipeline on Databricks*
+  Repo snapshot: [blog/cicd-part3](https://github.com/nobhri/azure-dbx-mock-platform/tree/blog/cicd-part3)
+
 - [ ] Terraform vs SQL for Unity Catalog Management — a real trade-off analysis
 - [ ] Why I banned local `databricks bundle run`
 - [ ] Asset Bundles parameter propagation: the bug and the fix
