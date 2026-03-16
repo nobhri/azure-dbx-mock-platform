@@ -79,3 +79,28 @@ Before finishing:
 - **Forgetting status.md update**: If you opened or changed an issue, update `docs/status.md` before finishing the session.
 - **Skipping worktree creation**: Never edit files in the main working tree. All changes go through a worktree branch → PR → main.
 - **Branching from stale HEAD**: Always pass `origin/main` as the base when creating a worktree. Branching from local HEAD without fetching first causes merge conflicts when main has moved.
+
+## Task Types
+- **Architecture**: changes that affect ADRs, infra design, or cross-layer contracts → read relevant ADRs first
+- **Implementation**: code/config changes within an established decision → read the ADR that governs the layer
+- When in doubt, treat the task as Architecture and review ADRs before writing any code
+
+## Architecture Awareness
+Read these docs before starting each task type:
+- **Infrastructure** (Terraform, Azure): ADR-001, ADR-002, ADR-003
+- **Catalog / Schema**: ADR-001, ADR-004, ADR-005
+- **ETL / PySpark**: ADR-006, ADR-007
+- **CI/CD**: `.github/workflows/` for the affected workflow + any referenced ADRs
+- All ADRs live in `docs/adr/`; summaries with links are in README
+
+## Issue Rules
+- Open issues track work not yet merged to main and verified by CI
+- Close issues only after the relevant CI run on main succeeds
+- Use `refs #XX` in commits and PR descriptions — never `fixes`, `closes`, or `resolves`
+- Closing is a manual human action after CI confirmation
+
+## Docs Location
+- `docs/adr/` — durable architecture decisions (ADR-001 through ADR-007)
+- `docs/design/` — production considerations and design notes
+- `docs/sessions/` — per-session working notes (not polished docs)
+- `docs/status.md` — live snapshot of open issues and architecture state

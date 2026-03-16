@@ -1,13 +1,35 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git add *)",
-      "Bash(git commit *)",
-      "Bash(git push *)",
-      "Bash(git log *)",
-      "Bash(git merge *)",
-      "Bash(git rebase *)",
-      "Bash(git branch *)"
+      "Edit",
+      "Write",
+      "Bash(git *)",
+      "Bash(gh issue *)",
+      "Bash(gh pr create *)",
+      "Bash(gh run view *)",
+      "Bash(gh run list *)"
+    ],
+    "deny": [
+      "Bash(gh pr merge *)",
+      "Bash(gh pr review --approve *)",
+      "Bash(gh workflow run *)",
+      "Bash(gh api *)",
+      "Bash(terraform destroy*)",
+      "Bash(rm -rf *)",
+      "Bash(git push --force*)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "osascript -e 'display notification \"Claude Code session ended\" with title \"Claude Code\"'"
+          }
+        ]
+      }
     ]
   }
 }
