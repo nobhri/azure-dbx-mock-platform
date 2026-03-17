@@ -10,6 +10,10 @@ on:
       destroy:
         type: boolean
         default: false
+      reset_metastore_state:
+        description: "Remove metastore from tfstate before import step (test branch 3 of import logic)"
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       destroy:
@@ -94,6 +98,14 @@ jobs:
         run: |
           tflint --init --chdir=infra/workload-dbx
           tflint --chdir=infra/workload-dbx
+
+      # Test helper: drop the metastore from state to simulate a partial-destroy scenario.
+      # Only runs when reset_metastore_state=true is passed via workflow_dispatch.
+      # Not exposed in workflow_call, so orchestrators cannot trigger this accidentally.
+      - name: "Test setup: remove metastore from state"
+        if: inputs.reset_metastore_state == true && inputs.destroy != true
+        run: |
+          terraform -chdir=infra/workload-dbx state rm databricks_metastore.this || true
 
       # Discover and import an existing metastore into Terraform state if needed.
       # Handles the "failed-destroy recovery" case: if a previous destroy run failed
